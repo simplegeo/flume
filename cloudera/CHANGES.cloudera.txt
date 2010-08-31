@@ -1,0 +1,5 @@
+commit 7fde7f12540ae30a2d5396115c7fa343a66fd56d
+Author: Chad Metcalf <chad@cloudera.com>
+Date:   Fri Jun 25 23:25:56 2010 -0700
+
+    CLOUDERA-BUILD. Adding basic cloudera build infrastructure support.
