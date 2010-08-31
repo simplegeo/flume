@@ -14,3 +14,4 @@ conf/flume-site.xml
 bin/.settings
 libtest/
 lib/ivy-*.jar
+/debian/tmp
