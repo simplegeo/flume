@@ -97,7 +97,7 @@ to call at top-level: ant deploy-contrib compile-core-test
   <property name="ivy.version" value="2.1.0"/>
   <property name="ivy.url"
             value="http://repo2.maven.org/maven2/org/apache/ivy/ivy" />
-  <property name="ivy.home" value="debian/.ant" />
+  <property name="ivy.home" value="${basedir}/debian/.ant" />
   <!-- for now ivy.lib and ivy.test.lib stay at legacy location -->
   <property name="ivy.lib" value="${lib.dir}"/>
   <property name="ivy.test.lib" value="${test.lib.dir}"/>
