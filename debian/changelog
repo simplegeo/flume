@@ -1,3 +1,13 @@
+flume (0.9.1rc2-0sg5) UNRELEASED; urgency=low
+
+  [ Ben Standefer ]
+  * Adjust version number in cloudera/build.properties
+  * Declared source format
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Tue, 31 Aug 2010 02:43:26 +0000
+
 flume (0.9.1rc2-0sg0) lucid; urgency=low
 
   Commit b92e52d0341a76b78091076cce95b4e6d463d39d:
