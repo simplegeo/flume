@@ -1,3 +1,13 @@
+flume (0.9.1rc2-0sg14) UNRELEASED; urgency=low
+
+  [ Ben Standefer ]
+  * Revert "Copy webapps directory instead of link it" This reverts
+    commit 314d9b11961fc6be49d19b417a03331caaa0e7f9.
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 01 Sep 2010 01:14:13 +0000
+
 flume (0.9.1rc2-0sg13) UNRELEASED; urgency=low
 
   * UNRELEASED
