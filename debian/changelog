@@ -1,3 +1,12 @@
+flume (0.9.1rc2-0sg11) UNRELEASED; urgency=low
+
+  [ Ben Standefer ]
+  * Copy webapps directory instead of link it
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 01 Sep 2010 00:37:39 +0000
+
 flume (0.9.1rc2-0sg10) UNRELEASED; urgency=low
 
   [ Ben Standefer ]
