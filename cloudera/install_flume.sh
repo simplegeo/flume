@@ -102,7 +102,7 @@ done
 
 cp build/flume*.jar ${PREFIX}/${LIB_DIR}/lib
 
-cp -r webapps ${PREFIX}/${LIB_DIR}
+cp -a webapps ${PREFIX}/${LIB_DIR}
 
 install -d -m 0755 $PREFIX/$BIN_DIR
 cp bin/* $PREFIX/${BIN_DIR}
