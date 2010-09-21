@@ -1,0 +1,73 @@
+#!/bin/bash
+# 
+# (c) Copyright 2010 Cloudera, Inc.
+# 
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+# 
+#       http://www.apache.org/licenses/LICENSE-2.0
+# 
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+# 
+### BEGIN INIT INFO
+# Provides:             flume-master
+# Required-Start:       $local_fs $remote_fs $syslog $named $network $time
+# Required-Stop:        $local_fs $remote_fs $syslog $named $network
+# Default-Start:        2 3 4 5
+# Default-Stop:         0 1 6
+# Short-Description:    Cloudera Flume Master
+### END INIT INFO
+# Starts a Flume master
+# 
+# description: Flume master
+
+
+export FLUME_HOME=/usr/lib/flume
+export FLUME_LOG_DIR=/var/log/flume
+export DOTIME=3
+export FLUME_RUN=/var/run/flume
+install -d -m 0755 -o flume -g flume ${FLUME_RUN} 
+
+desc="Flume master daemon"
+
+set -e
+start() {
+  echo -n $"Starting $desc (flume-master): "
+  su -s /bin/sh  flume -c '${FLUME_HOME}/bin/flume-daemon.sh start master '
+  echo
+}
+
+stop() {
+  echo -n $"Stopping $desc (flume-master): "
+  su -s /bin/sh  flume -c '${FLUME_HOME}/bin/flume-daemon.sh stop master '
+  echo
+}
+
+restart() {
+  stop
+  echo "Sleeping for ${DOTIME}"
+  sleep ${DOTIME}
+  start
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    restart
+    ;;
+  *)
+    echo $"Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit $RETVAL
