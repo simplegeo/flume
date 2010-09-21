@@ -1,3 +1,13 @@
+flume (0.9.1+1-1) UNRELEASED; urgency=low
+
+  [ Ben Standefer ]
+  * Add debian source format
+  * Add thing to .gitignore for build
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Tue, 21 Sep 2010 03:28:00 +0000
+
 flume (0.9.1+1-1) cloudera; urgency=low
 
   Commit 92ab5c55c0486d736d0d8283f3087dc9d0637ae7:
