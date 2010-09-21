@@ -1,0 +1,254 @@
+﻿
+
+////////////////////
+Licensed to Cloudera, Inc. under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  Cloudera, Inc. licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+////////////////////
+
+=== Extending via Sink/Source/Decorator Plugins
+
+An experimental plugin mechanism is provided that allows you to add new custom 
+sources, sinks, and decorators to the system.  
+
+.Two steps are required to use this feature.
+. First, add the jar with the new plugin classes to flume's classpath.
+  If the plugin requires dlls/so's make sure these are in the
+  LD_LIBRARY_PATH (unix .so) or PATH (windows .dll)
+. Second, in +flume-site.xml+, add the class names of the new sources,
+  sinks, and/or decorators to the +flume.plugin.classes+ property.
+  Multiple classes can be specified by comma separating the list. Java
+  reflection is used to find some special static methods that add new
+  components to the system and data flow language's library.
+
+An example component has been "pluginified" -- the "HelloWorld"
+source, sink, and decorator. This plugin does something very simple;
+the source generates the text "hello world!" every three seconds, the
+sink writes events to a "helloworld.txt" text file, and the decorator
+prepends "hello world!" to any event it encounters.
+
+. cd into the +plugins/helloworld+ directory and type +ant+, a +helloworld_plugin.jar+ file will be generated
+. Add the following to flume-site.xml (create it if it doesn't already
+  exist)
+  "helloworld.HelloWorldSink,helloworld.HelloWorldSource,helloworld.HelloWorldDecorator"
+  to the +flume.plugin.classes+ property in +flume-site.xml+.
++
+IMPORTANT: if you use the provided +flume-site.xml.template+ file to
+create your +flume-site.xml+ be sure to comment out or remove any
+example properties contained in the sample template.
++
+.Example flume-site.xml contents
+[source,xml]
+----
+<configuration>
+  <property>
+    <name>flume.plugin.classes</name>
+    <value>helloworld.HelloWorldSink,helloworld.HelloWorldSource,helloworld.HelloWorldDecorator</value>
+    <description>Comma separated list of plugins</description>
+  </property>
+</configuration>
+----
+. Start the Flume master and at least one logical node in separate terminals
+.. in each terminal cd into the toplevel flume directory, should be just above +plugins+
+.. Add +helloworld_plugin.jar+ to the FLUME_CLASSPATH in *both* terminals
++
+----
+export FLUME_CLASSPATH=`pwd`/plugins/helloworld/helloworld_plugin.jar
+----
+.. in terminal 1 run +bin/flume master+
+.. in terminal 2 run +bin/flume node -n hello1+
+. At this point the master and hello1 nodes should be started and will have loaded the plugin
++
+.You should see log output similar to the following in both master and hello1:
+----
+10/07/29 17:35:28 INFO conf.SourceFactoryImpl: Found source builder helloWorldSource in helloworld.HelloWorldSource
+10/07/29 17:35:28 INFO conf.SinkFactoryImpl: Found sink builder helloWorldSink in helloworld.HelloWorldSink
+10/07/29 17:35:28 INFO conf.SinkFactoryImpl: Found sink decorator helloWorldDecorator in helloworld.HelloWorldDecorator
+----
++
+TIP: Another way to verify that your plugin is loaded is to check if it is displayed on this page http://localhost:35871/masterext.jsp
++
+. Configure hello1
++
+TIP: The easiest way to do this is open the configuration page of the master in a browser, typically this link http://localhost:35871/flumeconfig.jsp
++
+.. load the helloworld source/sink into our +hello1+ node (the bottom text box, then submit button if you are using the master's web interface"
++
+----
+hello1: helloWorldSource() | helloWorldSink();
+----
+.. you could also try the hello world decorator
++
+----
+hello1: helloWorldSource() | { helloWorldDecorator() => helloWorldSink() };
+----
++
+In either case +hello1+ will output a +helloworld.txt+ file into it's current working directory. Every 3 seconds a new "hello world!" line will be output to the file.
+
+
+// NOTE: If you want more information about writing your own plugins, 
+// please contact flume-dev@cloudera.org.
+
+////////
+HIDDEN FOR NOW, THIS IS HALF BAKED
+
+=== Ganglia Reporting
+
+First we need two nodes -- in this example they are run on the same machine.  
+
+----
+Terminal 1: $ bin/flume node 
+
+Terminal 2: $ bin/flume node -n localhost
+----
+
+We assume the node is called _host_.
+
+Next let's spawn a new logical node called _report_.
+
+----
+spawn localhost report
+----
+
+Finally lets set the configuration of the three nodes (replacing _host_ with 
+the actual host name).
+
+----
+host : asciisynth(0,100) | { delay(250) => agentSink } ;
+report : reportPoller | [ console, 
+dganglia("LogicalNodeManager._node_.LogicalNode.Agent.NaiveFileWAL.appendSucce
+ss", "msgs", "long") ];
+localhost : collectorSource | collectorSink("file:///tmp/test/%H","blah",5000);
+----
+
+This setup synthesize random ascii data events, and sends one evert 250s 
+through the agentSink pipeline.  These are received by the +localhost+ node 
+which write data into hourly directories.  Meanwhile, the +report+ node on 
++_host_+ is a separate logical node that periodically polls the physical node 
+for reports and sends them to the console and a +dganglia+ sink.  The 
++dganglia+ sends the deltas (rate information) between particular values to 
+the ganglia gmond daemon.
+
+
+==== Experimental Sources and Sinks
+
+.Flume's Plugin Sources [horizontal] +amqpPoll(_..._)+ :: AMPQ (Advanced 
+Message Queuing Protocol) based on polling
+
++amqpSub(_..._)+ :: AMPQ (Advanced Message Queuing Protocol) based on 
+subscribing
+
++pcapfile("_pcap file_")+ :: One shot pcap file source (packet capture ala 
+wireshark).  One packet is one event
+
++pcap("_filterspec_")+ :: Live filtered pcap source (package capture ala 
+wireshark).  One packet is one event.
+
+.Flume's Plugin Sinks
+
++ampq()+ :: AMQP sink.  Write to specified AMQP broker (this is not present.)
+
+NOTE: Graphing currently uses Google charts API and requires the browser to 
+external network connectivity
+
+.Flume's Reporter Sinks (Experimental):
+[horizontal]
++ganglia("_attr_","_units_","_type_"[,"_gmondservers_"])+ :: This sink reads 
+absolute value of the attribute +_attr_+ as a type +_type_+ where +_type_+ may 
+be +int+, +long+, +double+ or +string+.  One may optionally specify a list of 
+gmond servers to send metric data to.
+
++dganglia("_attr_","_units_","_type_"[,"_gmondservers_"])+ :: This sink reads 
+the attribute +_attr_+ as a type +_type_+ where +_type_+ may be +int+, +long+, 
+or +double+ and then emits the delta of the previous value.  One may 
+optionally specify a list of gmond servers to send metric data to.
+
++counter("_name_")+ :: counts number of events received, and registers report 
+to report manager as +_name_+.
+
++counterHistory("name", .... )+ :: generates historical count versus time 
+graph
+
++multigrep(...)+ :: makes histogram that counts number of events that matches 
+substring grep
+
++multigrepspec(...)+ :: makes histogram that counts number of events that 
+match substring grep (uses config file instead of inline)|
+
++regexhisto(...)+ :: uses regex and builds histogram based on matching group's 
+value
+
++regexhisto(...)+ :: uses regex and builds histogram based on matching group's 
+value (uses config file instead of inline)
+
+.Flume's Experimental/Debugging Sink Decorators (unsupported)
+[horizontal] 
++flakeyAppend(_p_)+ :: each append has a probability +_p_+ (where 0.0 &le; _p_ 
+&le; 1.0) of failing and throwing an exception.
+
++intervalFlakeyAppend(_n_)+ :: every +_n_+ th element fails by throwing an 
+exception
+
++intervalDroppyAppend(_n_)+ :: every +_n_+ th element fails by throwing an 
+exception
+
++inmem+ :: buffers events in memory and then flushes all on close. Good for 
+benchmarking.
+
++benchinject+ :: injects an extra benchmark begin event on open and a 
+benchmark end event on close
+
++benchreport("_name_")+ :: starts a benchmark when it receives a benchmark 
+begin event and stops a benchmark when it receives a corresponding benchmark 
+end event.  Benchmark events are not forwarded, but all other events are.
+
++mult(_n_)+ :: takes each event and sends it _n_ copies of it before sending 
+the next event.
+
+// unused, easier to just remove.
+// +latch(...)+ :: (Unsupported) adds a latch that blocks until
+// triggered.  This is only really useful for debugging and test cases.
+
+===== Deprecated 
+
+.Flume's Deprecated Sources
+
+These sources are "too specific" or perform poorly and are thus deprecated 
+(but still available).  They will likely be replaced with a more generic 
+mechanisms (similar to the output format mechanism).
+
+.Flume's Experimental Sources
+
+[horizontal]
++tpriosource(_port_)+ :: Thrift RPC base source on TCP port, port,
+prioritized by priority (higher priority first) and then age (older 
+messages first)
+
++tsource(_port_)+ :: Same as RPC but specifically thrift RPC
+
+.Flume's Deprecated Sinks
+
+Many of these sinks are left over from earlier iterations.
+
+[horizontal]
++tsink+ :: 
+
++tacksink(...)+ :: thrift acked sink
+
++trawsink(...)+ :: thrift using writable serialization instead of thrift 
+serialization
+
+ END OF HIDDEN FOR NOW HALF BAKED 
+///////////////// 
