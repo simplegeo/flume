@@ -1,4 +1,13 @@
-flume (0.9.1+1-1) UNRELEASED; urgency=low
+flume (0.9.1+1-0sg20) lucid; urgency=low
+
+  [ Ben Standefer ]
+  * Stub entry to change version number
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Tue, 21 Sep 2010 03:29:05 +0000
+
+flume (0.9.1+1-1) lucid; urgency=low
 
   [ Ben Standefer ]
   * Add debian source format
