@@ -33,6 +33,12 @@ agentSinks forwarding to port +_port_+.  If port is not specified, the
 node default collector TCP port, 35863.  This source registers itself 
 at the Master so that its failover chains can automatically be determined.
 
++autoCollectorSource+ :: Auto collector source. Creates a logical collector
+that, when assigned to a physical node, will be included in the list of
+collectors in a failover chain. This is the collector counterpart to
+auto*Chain() sinks. See the section Automatic Failover Chains for additional
+information.
+
 +logicalSource+ :: Logical Source. This source has a port assigned to it by 
 the Master and listens for rpcSink formatted data.
 
@@ -43,12 +49,21 @@ These sources are untranslated and generally need all of their arguments.
 [horizontal]
 +null+ :: Null source. Opens, closes, and returns null (last record) on next().
 
-+console+ :: Stdin console.  A flume node must be started with the
++console+ :: Stdin console source.  This is for inputting events as an
+interactive user and provides features such as edit history and
+keyboard edit shortcuts.  A flume node must be started with the +flume
+node_nowatch+ -- the watchdog does not allow console input.
+
++stdin+ :: Stdin source.  This is for piping data into a flume node's
+standard input data source.  A flume node must be started with the
 +flume node_nowatch+ -- the watchdog does not allow console input.
+WARNING: although this can be used as an interactive console, it will
+hang a flume node until a newline is entered.
 
 +rpcSource(_port_)+ :: A remote procedure call (RPC) server that is
-configured to listen on TCP port +_port_+. Currently, the
-Apache-Thrift RPC framework is used.
+configured to listen on TCP port +_port_+. Supports both Apache-Thrift and 
+Apache-Avro RPC framework.  The type of RPC framework is specified by +event.rpc.type+ 
+property (THRIFT or AVRO), the default is THRIFT.  Note that same RPC framework is used for rpcSink.
 
 +text("_filename_")+ :: One-time text file source.  One event per +\n+ 
 delimited line.
@@ -60,7 +75,10 @@ file "foo" and then "foo" is moved to "bar" and a new file appears
 named "foo", it will finish reading the new "bar" file and then start
 from the beginning of "foo"). If the +startFromEnd+ parameter is
 false, tail will re-read from the beginning of the file.  If it is
-true, it will only start reading from the current end of file.
+true, it will only start reading from the current end of file.  If the
+last line of a file does not end with a newline character ('\n'), the
++tail+ source will only send an event with this last line when the
++tail+ is closed.
 
 +multitail("_filename_"[, _file2_ [,_file3_ ... ] ])+ :: Like +tail+ but can 
 follow multiple files concurrently.
@@ -114,6 +132,10 @@ milliseconds. +execStream("foo")+ is equivalent to +exec("foo", false, false,
 +synth(_msgCount_,_msgSize_)+ :: A source that synthetically generates 
 +_msgCount_+ random messages of size +_msgSize_+.  This will generate non 
 printable characters.
+
++synthrndsize(_msgCount_,_minSize_,_maxSize_)+ :: A source that synthetically 
+generates +_msgCount_+ random messages of size between randomly _minSize_ and _maxSize_.
+This will generate non printable characters.
 
 +nonlsynth(_msgCount_,_msgSize_)+:: A source that synthetically generates 
 +_msgCount_+ random messages of size +_msgSize_+.  This converts all `'\n'` 
@@ -266,7 +288,9 @@ can use escape sequences documented to bucket data as documented in the
 +rpcSink("_host_"[, _port_])+ :: A remote procedure call (RPC) sink that is 
 configured to send to machine +_host_+ on TCP port +_port_+. Default port is 35861 
 and can be overridden by setting the +flume.collector.event.port+ property. 
-Currently, the apache-thrift RPC framework is used.
+Supports both Apache-Thrift and Apache-Avro RPC framework.  
+The type of RPC framework is specified by +event.rpc.type+ property (THRIFT or AVRO), 
+the default is THRIFT.  Note that same RPC framework is used for rpcSource.
 
 +syslogTcp("_host_"[,_port_])+ :: Syslog TCP sink.  Write to host "host" on 
 port "port" in syslog over TCP format (syslog-ng compatible). Default port is 
@@ -393,11 +417,16 @@ exactly _k_ events are forwarded.  All events that pass through have the same
 probability of being selected.  NOTE: This will reorder the events being sent.
 
 +delay(_ms_)+ :: adds a _ms_ millisecond delay before forwarding events down 
-the pipeline.  This bocks and prevents other events from entering the 
+the pipeline.  This blocks and prevents other events from entering the 
 pipeline.  This is useful for workload simulation in conjunction with 
 +asciisynth+ sources.
 
++choke[(_choke-id_)]+ :: Limits the transfer rate of data going into the sink.  
+The +choke-id+ should have been registered on the physical node where this decorator is being created using the +setChokeLimit+ command.  
+Refer to *Limiting Data Transfer Rate between Source-Sink pairs* section for more details.
 
+
+include::Environment[]
 
 === flume-site.xml configuration settings
 

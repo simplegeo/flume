@@ -18,7 +18,6 @@
 <html><head>
 <!-- Copyright (c) 2010 Cloudera, Inc.  All rights reserved. -->
 <!-- Retro web 1.0 flume Agent configuration display -->
-<title>Flume Node: Sources and Sinks</title>
 <%@ page
 	contentType="text/html; charset=UTF-8"
 	import="javax.servlet.*"
@@ -27,16 +26,25 @@
 	import="java.util.*"
 	import="java.text.DecimalFormat"
 	import="com.cloudera.flume.conf.FlumeBuilder"
+        import="com.cloudera.flume.agent.FlumeNode"
 %>
+<title>Flume Node: <%= FlumeNode.getInstance().getPhysicalNodeName()%> :: Sources and Sinks</title>
+
 <link rel="stylesheet" type="text/css" href="/flume.css" />
 
 </head>
 <body>
 <jsp:include page="menu_agent.jsp" />
 
-<h1>Extensions - Sink/Source/Decorator</h1>
+<h1>Flume Node: <%=FlumeNode.getInstance().getPhysicalNodeName()%> :: Extensions - Sink/Source/Decorator</h1>
 
-<h2>Available Sinks</h2>
+<jsp:include page="version.jsp" />
+<hr>
+
+
+<div id="sinks">
+<h2>Sinks</h2>
+
 <table>
 
 <%
@@ -49,8 +57,10 @@
 %>
 
 </table>
+</div>
 
-<h2>Available Sources</h2>
+<div id="sources">
+<h2>Sources</h2>
 <table>
 
 <%
@@ -63,8 +73,10 @@
 %>
 
 </table>
+</div>
 
-<h2>Available Decorators</h2>
+<div id="decos">
+<h2>Decorators</h2>
 <table>
 
 <%
@@ -77,5 +89,5 @@
 %>
 
 </table>
-
+</div>
 </body></html>

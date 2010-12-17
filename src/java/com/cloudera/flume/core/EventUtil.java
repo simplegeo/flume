@@ -24,6 +24,8 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class has some simple utilities for connecting sinks to sources.
@@ -34,6 +36,8 @@ import org.apache.commons.cli.PosixParser;
  */
 public class EventUtil {
 
+  public static final Logger LOG = LoggerFactory.getLogger(EventUtil.class);
+
   /**
    * Dump from source to sink until source fails.
    */
@@ -43,8 +47,22 @@ public class EventUtil {
       if (e == null) {
         break;
       }
-
       snk.append(e);
+    }
+  }
+
+  public static void dumpN(long n, EventSource src, EventSink snk, boolean debug)
+      throws IOException {
+    for (long i = 0; i < n; i++) {
+      Event e = src.next();
+      if (e == null) {
+        LOG.info("Dumped " + i + "/" + n + " events ");
+        break;
+      }
+      snk.append(e);
+
+      LOG.info("dumpN: " + (i + 1) + "/" + n + " events dumped '"
+          + new String(e.getBody()) + "'");
     }
   }
 
@@ -55,13 +73,7 @@ public class EventUtil {
 
   public static void dumpN(long n, EventSource src, EventSink snk)
       throws IOException {
-    for (long i = 0; i < n; i++) {
-      Event e = src.next();
-      if (e == null) {
-        break;
-      }
-      snk.append(e);
-    }
+    dumpN(n, src, snk, false);
   }
 
   /*
