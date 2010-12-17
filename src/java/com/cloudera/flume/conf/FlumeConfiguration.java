@@ -17,6 +17,7 @@
  */
 package com.cloudera.flume.conf;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -28,7 +29,8 @@ import java.util.Map.Entry;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.util.Pair;
 import com.google.common.base.Preconditions;
@@ -44,9 +46,60 @@ import com.google.common.base.Preconditions;
  * and causes a stack overflow.
  */
 public class FlumeConfiguration extends Configuration {
-  final protected static Logger LOG = Logger
+  protected static final Logger LOG = LoggerFactory
       .getLogger(FlumeConfiguration.class);
   private static FlumeConfiguration singleton;
+
+  /**
+   * Returns the 'FLUME_HOME' location. Taken in order of precedence:
+   * 
+   * - Java system property 'flume.home'
+   * 
+   * - $FLUME_HOME in the environment.
+   * 
+   * - null if neither of these are set.
+   */
+  public static String getFlumeHome() {
+    String flumeHome = System.getProperty("flume.home");
+    if (null == flumeHome) {
+      flumeHome = System.getenv("FLUME_HOME");
+    }
+
+    if (null == flumeHome) {
+      LOG.warn("-Dflume.home and $FLUME_HOME both unset");
+    }
+
+    return flumeHome;
+  }
+
+  /**
+   * Returns the 'FLUME_CONF_DIR' location. Taken in order of precedence:
+   * 
+   * - Java system property 'flume.conf.dir'
+   * 
+   * - $FLUME_CONF_DIR in the environment
+   * 
+   * - getFlumeHome()/conf
+   * 
+   * - ./conf
+   */
+  public static String getFlumeConfDir() {
+    String flumeConfDir = System.getProperty("flume.conf.dir");
+    if (null == flumeConfDir) {
+      flumeConfDir = System.getenv("FLUME_CONF_DIR");
+    }
+
+    if (null == flumeConfDir) {
+      String flumeHome = getFlumeHome();
+      if (null != flumeHome) {
+        flumeConfDir = new File(flumeHome, "conf").toString();
+      } else {
+        flumeConfDir = "./conf";
+      }
+    }
+
+    return flumeConfDir;
+  }
 
   public synchronized static FlumeConfiguration get() {
     if (singleton == null)
@@ -71,19 +124,13 @@ public class FlumeConfiguration extends Configuration {
     super();
     if (loadDefaults) {
       Path home = null;
-      String flumeHome = System.getenv("FLUME_HOME");
+      String flumeHome = getFlumeHome();
       if (flumeHome == null) {
         home = new Path(".");
       } else {
         home = new Path(flumeHome);
       }
-      Path conf = null;
-      String flumeConf = System.getenv("FLUME_CONF_DIR");
-      if (flumeConf == null) {
-        conf = new Path(home, "conf");
-      } else {
-        conf = new Path(flumeConf);
-      }
+      Path conf = new Path(getFlumeConfDir());
       LOG.info("Loading configurations from " + conf);
       super.addResource(new Path(conf, "flume-conf.xml"));
       super.addResource(new Path(conf, "flume-site.xml"));
@@ -128,10 +175,12 @@ public class FlumeConfiguration extends Configuration {
   public static final String POLLER_QUEUESIZE = "flume.poller.queuesize";
   public static final String THRIFT_QUEUESIZE = "flume.thrift.queuesize";
   public static final String THRIFT_CLOSE_MAX_SLEEP = "flume.thrift.close.maxsleep";
+  public static final String THRIFT_SOCKET_TIMEOUT_MS = "flume.thrift.socket.timeout.ms";
   public static final String INSISTENTOPEN_INIT_BACKOFF = "flume.inisistentOpen.init.backoff";
   public static final String HISTORY_DEFAULTPERIOD = "flume.countHistory.period";
   public static final String HISTORY_MAXLENGTH = "flume.history.maxlength";
   public static final String TAIL_POLLPERIOD = "flume.tail.pollperiod";
+  public static final String EVENT_RPC_TYPE = "flume.event.rpc";
 
   // Collector parameters
   public final static String COLLECTOR_EVENT_HOST = "flume.collector.event.host";
@@ -140,12 +189,14 @@ public class FlumeConfiguration extends Configuration {
   public static final String COLLECTOR_ROLL_MILLIS = "flume.collector.roll.millis";
   public static final String COLLECTOR_OUTPUT_FORMAT = "flume.collector.output.format";
   public static final String COLLECTOR_DFS_COMPRESS_GZIP = "flume.collector.dfs.compress.gzip";
+  public static final String COLLECTOR_DFS_COMPRESS_CODEC = "flume.collector.dfs.compress.codec";
 
   // TODO(henry) move these to flume.master - they now tell the master which
   // interface / port to start up on
   public static final String MASTER_HTTP_PORT = "flume.master.http.port";
   public static final String MASTER_HEARTBEAT_PORT = "flume.master.heartbeat.port";
   public static final String MASTER_HEARTBEAT_SERVERS = "flume.master.heartbeat.servers";
+  public static final String MASTER_HEARBEAT_RPC = "flume.master.heartbeat.rpc";
 
   public static final String CONFIG_HEARTBEAT_PERIOD = "flume.config.heartbeat.period";
   public static final String MASTER_HEARTBEAT_MAX_MISSED = "flume.config.heartbeat.missed.max";
@@ -154,12 +205,16 @@ public class FlumeConfiguration extends Configuration {
   public static final String NODE_CLOSE_TIMEOUT = "flume.node.close.timeout";
   public static final String CONFIG_ADMIN_PORT = "flume.config.admin.port";
   public static final String REPORT_SERVER_PORT = "flume.report.server.port";
-
+  public static final String REPORT_SERVER_RPC_TYPE = "flume.report.server.rpc.type";
   public static final String MASTER_SAVEFILE = "flume.master.savefile";
   public static final String MASTER_SAVEFILE_AUTOLOAD = "flume.master.savefile.autoload";
 
   // reporter parameters
   public static final String REPORTER_POLLER_PERIOD = "flume.reporter.poller.period";
+
+  // security parameters
+  public static final String SECURITY_KERBEROS_PRINCIPAL = "flume.security.kerberos.principal";
+  public static final String SECURITY_KERBEROS_KEYTAB = "flume.security.kerberos.keytab";
 
   public static final String FLURKER_ENCODING = "flume.irc.encoding";
 
@@ -207,6 +262,10 @@ public class FlumeConfiguration extends Configuration {
   public static final String HIVE_PW = "flume.hive.userpw";
 
   public static final String PLUGIN_CLASSES = "flume.plugin.classes";
+
+  // Options for RPC type
+  public static final String RPC_TYPE_THRIFT = "THRIFT";
+  public static final String RPC_TYPE_AVRO = "AVRO";
 
   /**
    * Returns true if there is more than one server in MASTER_SERVERS.
@@ -499,6 +558,10 @@ public class FlumeConfiguration extends Configuration {
     return getInt(THRIFT_QUEUESIZE, 1000);
   }
 
+  public int getThriftSocketTimeoutMs() {
+    return getInt(THRIFT_SOCKET_TIMEOUT_MS, 10000);
+  }
+
   /**
    * Initial backoff in mills after a failed open attempt in an insistentOpen
    * decorator
@@ -540,12 +603,35 @@ public class FlumeConfiguration extends Configuration {
     return getInt(COLLECTOR_EVENT_PORT, 35853);
   }
 
+  /**
+   * This returns the type of RPC mechanism (Thrift or Avro) chosen for the
+   * FlumeEventServer.
+   */
+  public String getEventRPC() {
+    String[] validRPCProtocols = { RPC_TYPE_AVRO, RPC_TYPE_THRIFT };
+    String entered = get(EVENT_RPC_TYPE, RPC_TYPE_THRIFT).toUpperCase();
+    for (String prot : validRPCProtocols) {
+      if (entered.equals(prot)) {
+        return prot;
+      }
+    }
+    // defaulting to Thrift with a polite warning
+    LOG.warn("event.rpc.type incorrectly defined, should be either"
+        + " \"THRIFT\" or \"AVRO\".  Defaulting to \"THRIFT\"");
+    return RPC_TYPE_THRIFT;
+  }
+
   public String getCollectorDfsDir() {
     return get(COLLECTOR_DFS_DIR, "file://tmp/flume/collected");
   }
 
+  @Deprecated
   public boolean getCollectorDfsCompressGzipStatus() {
     return getBoolean(COLLECTOR_DFS_COMPRESS_GZIP, false);
+  }
+
+  public String getCollectorDfsCompressCodec() {
+    return get(COLLECTOR_DFS_COMPRESS_CODEC, "None");
   }
 
   public long getCollectorRollMillis() {
@@ -629,6 +715,25 @@ public class FlumeConfiguration extends Configuration {
   }
 
   /**
+   * This returns the type of RPC mechanism (Thrift or Avro) chosen for the
+   * FlumeReportServer.
+   */
+  public String getReportServerRPC() {
+    String[] validRPCProtocols = { RPC_TYPE_AVRO, RPC_TYPE_THRIFT };
+    String entered = get(REPORT_SERVER_RPC_TYPE, RPC_TYPE_THRIFT).toUpperCase();
+    for (String prot : validRPCProtocols) {
+      if (entered.equals(prot)) {
+        return prot;
+      }
+    }
+    // defaulting to Thrift with a polite warning
+    LOG.warn("flume.report.server.rpc.type incorrectly defined, "
+        + "should be either \"THRIFT\" or \"AVRO\".  "
+        + "Defaulting to \"THRIFT\"");
+    return RPC_TYPE_THRIFT;
+  }
+
+  /**
    * If MASTER_HEARTBEAT_PORT is set, we use that as our heartbeat port. If not,
    * we look at the list of server:port pairs in MASTER_HEARTBEAT_SERVERS, in
    * particular we look at the MASTER_SERVER_ID'th value
@@ -653,6 +758,18 @@ public class FlumeConfiguration extends Configuration {
     Preconditions.checkState(server.length == 2, "Server spec "
         + serverList.get(serverid) + " is ill-formed");
     return Integer.parseInt(server[1].trim());
+  }
+
+  public String getMasterHeartbeatRPC() {
+    String[] validRPCProtocols = { RPC_TYPE_AVRO, RPC_TYPE_THRIFT };
+    String entered = get(MASTER_HEARBEAT_RPC, RPC_TYPE_THRIFT).toUpperCase();
+    for (String prot : validRPCProtocols) {
+      if (entered.equals(prot)) {
+        return prot;
+      }
+    }
+    // default
+    return RPC_TYPE_THRIFT;
   }
 
   public int getMasterGossipPeriodMs() {
@@ -759,6 +876,17 @@ public class FlumeConfiguration extends Configuration {
 
   public boolean getMasterSavefileAutoload() {
     return getBoolean(MASTER_SAVEFILE_AUTOLOAD, false);
+  }
+
+  public String getKerberosPrincipal() {
+    // flume is the default kerberos principal for hdfs writes
+    // _HOST is expanded by the hadoop security util to be the local host name.
+    return get(SECURITY_KERBEROS_PRINCIPAL, "");
+  }
+
+  public String getKerberosKeytab() {
+    // mit kerb v5 default keytab path
+    return get(SECURITY_KERBEROS_KEYTAB, "/etc/flume/conf/krb5.keytab");
   }
 
   public long getReporterPollPeriod() {

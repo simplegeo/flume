@@ -25,7 +25,7 @@ import java.util.Map.Entry;
 
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.cloudera.flume.conf.FlumeSpecException;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.master.ConfigManager;
 import com.cloudera.flume.master.ConfigurationManager;
 import com.cloudera.flume.master.StatusManager;
@@ -106,11 +106,25 @@ abstract public class FlowConfigManager implements ConfigurationManager {
    * manager
    */
   @Override
-  synchronized public void addLogicalNode(String physNode, String logicNode) {
-    parent.addLogicalNode(physNode, logicNode);
+  synchronized public boolean addLogicalNode(String physNode, String logicNode) {
+    boolean result;
+
+    result = parent.addLogicalNode(physNode, logicNode);
     String flowid = getFlowId(logicNode);
     ConfigurationManager fcfg = getCreateFlowConfigMan(flowid);
     fcfg.addLogicalNode(physNode, logicNode);
+
+    return result;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  synchronized public void addChokeLimit(String physNode, String chokeID,
+      int limit) {
+    parent.addChokeLimit(physNode, chokeID, limit);
+
   }
 
   /**
@@ -161,6 +175,14 @@ abstract public class FlowConfigManager implements ConfigurationManager {
   @Override
   synchronized public List<String> getLogicalNode(String physNode) {
     return parent.getLogicalNode(physNode);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  synchronized public Map<String, Integer> getChokeMap(String physNode) {
+    return parent.getChokeMap(physNode);
   }
 
   @Override
@@ -232,7 +254,8 @@ abstract public class FlowConfigManager implements ConfigurationManager {
   }
 
   @Override
-  synchronized public void removeLogicalNode(String logicNode) throws IOException {
+  synchronized public void removeLogicalNode(String logicNode)
+      throws IOException {
     String oldflow = getFlowId(logicNode);
     parent.removeLogicalNode(logicNode);
     ConfigurationManager flowCfg = flows.get(oldflow);

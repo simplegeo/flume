@@ -31,9 +31,9 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.agent.FlumeNode;
 import com.cloudera.flume.conf.FlumeConfiguration;
@@ -42,9 +42,11 @@ import com.cloudera.flume.master.logical.LogicalConfigurationManager;
 import com.cloudera.flume.reporter.ReportEvent;
 import com.cloudera.flume.reporter.ReportManager;
 import com.cloudera.flume.reporter.Reportable;
-import com.cloudera.flume.reporter.server.ReportServer;
+import com.cloudera.flume.reporter.server.AvroReportServer;
+import com.cloudera.flume.reporter.server.ThriftReportServer;
 import com.cloudera.flume.util.FlumeVMInfo;
 import com.cloudera.flume.util.SystemInfo;
+import com.cloudera.util.CheckJavaVersion;
 import com.cloudera.util.NetUtils;
 import com.cloudera.util.StatusHttpServer;
 
@@ -60,7 +62,7 @@ public class FlumeMaster implements Reportable {
 
   protected final FlumeConfiguration cfg;
 
-  static Logger LOG = Logger.getLogger(FlumeMaster.class);
+  static final Logger LOG = LoggerFactory.getLogger(FlumeMaster.class);
 
   /** report key -- hostname of this master */
   static final String REPORTKEY_HOSTNAME = "hostname";
@@ -69,8 +71,13 @@ public class FlumeMaster implements Reportable {
 
   MasterAdminServer configServer;
   MasterClientServer controlServer;
-  ReportServer reportServer;
-
+  /*
+   * We create instances of both AvroReportServer and ThriftReportServer, and
+   * start the one defined by the flag flume.report.server.rpc.type in the
+   * configuration file.
+   */
+  ThriftReportServer thriftReportServer = null;
+  AvroReportServer avroReportServer = null;
   StatusHttpServer http = null;
 
   final boolean doHttp;
@@ -79,7 +86,7 @@ public class FlumeMaster implements Reportable {
   final ConfigurationManager specman;
   final StatusManager statman;
   final MasterAckManager ackman;
-  
+
   final String uniqueMasterName;
 
   Thread reaper;
@@ -117,9 +124,9 @@ public class FlumeMaster implements Reportable {
   public FlumeMaster(FlumeConfiguration cfg, boolean doHttp) {
     this.cfg = cfg;
     instance = this;
-    
+
     this.uniqueMasterName = "flume-master-" + cfg.getMasterServerId();
-    
+
     this.doHttp = doHttp;
     this.cmdman = new CommandManager();
     ConfigStore cfgStore = createConfigStore(FlumeConfiguration.get());
@@ -216,16 +223,30 @@ public class FlumeMaster implements Reportable {
       http.start();
     }
 
-    controlServer = new MasterClientServer(this);
-    configServer = new MasterAdminServer(this);
-    reportServer = new ReportServer(FlumeConfiguration.get()
+    controlServer = new MasterClientServer(this, FlumeConfiguration.get());
+    configServer = new MasterAdminServer(this, FlumeConfiguration.get());
+    /*
+     * We instantiate both kinds of report servers below, but no resources are
+     * allocated till we call serve() on them.
+     */
+    avroReportServer = new AvroReportServer(FlumeConfiguration.get()
+        .getReportServerPort());
+    thriftReportServer = new ThriftReportServer(FlumeConfiguration.get()
         .getReportServerPort());
 
     ReportManager.get().add(this);
     try {
       controlServer.serve();
       configServer.serve();
-      reportServer.serve();
+      /*
+       * Start the Avro/Thrift ReportServer based on the flag set in the
+       * configuration file.
+       */
+      if (cfg.getReportServerRPC() == cfg.RPC_TYPE_AVRO) {
+        avroReportServer.serve();
+      } else {
+        thriftReportServer.serve();
+      }
     } catch (TTransportException e1) {
       throw new IOException("Error starting control or config server", e1);
     }
@@ -259,7 +280,11 @@ public class FlumeMaster implements Reportable {
   public void shutdown() {
     try {
       if (http != null) {
-        http.stop();
+        try {
+          http.stop();
+        } catch (Exception e) {
+          LOG.error("Error stopping FlumeMaster", e);
+        }
         http = null;
       }
 
@@ -276,12 +301,20 @@ public class FlumeMaster implements Reportable {
         controlServer.stop();
         controlServer = null;
       }
-
-      if (reportServer != null) {
-        reportServer.stop();
-        reportServer = null;
+      /*
+       * Close the reportserver which started.
+       */
+      if (cfg.getReportServerRPC() == cfg.RPC_TYPE_AVRO) {
+        if (avroReportServer != null) {
+          avroReportServer.stop();
+          avroReportServer = null;
+        }
+      } else {
+        if (thriftReportServer != null) {
+          thriftReportServer.stop();
+          thriftReportServer = null;
+        }
       }
-
       specman.stop();
 
       reaper.interrupt();
@@ -291,12 +324,10 @@ public class FlumeMaster implements Reportable {
         ZooKeeperService.get().shutdown();
       }
 
-    } catch (InterruptedException e) {
-      LOG.warn("Interrupted when shutting down master... " + e.getMessage());
-      LOG.debug(e, e);
     } catch (IOException e) {
-      LOG.error("Exception when shutting down master! " + e.getMessage());
-      LOG.debug(e, e);
+      LOG.error("Exception when shutting down master!", e);
+    } catch (Exception e) {
+      LOG.error("Exception when shutting down master!", e);
     }
 
   }
@@ -374,9 +405,14 @@ public class FlumeMaster implements Reportable {
    * This is the method that gets run when bin/flume master is executed.
    */
   public static void main(String[] argv) {
-    FlumeNode.logVersion(LOG, Level.INFO);
-    FlumeNode.logEnvironment(LOG, Level.INFO);
-
+    FlumeNode.logVersion(LOG);
+    FlumeNode.logEnvironment(LOG);
+    // Make sure the Java version is not older than 1.6
+    if (!CheckJavaVersion.isVersionOk()) {
+      LOG
+          .error("Exiting because of an old Java version or Java version in bad format");
+      System.exit(-1);
+    }
     FlumeConfiguration.hardExitLoadConfig(); // if config file is bad hardexit.
 
     CommandLine cmd = null;
