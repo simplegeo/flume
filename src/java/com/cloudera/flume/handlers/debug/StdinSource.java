@@ -21,13 +21,15 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.SourceFactory.SourceBuilder;
 import com.cloudera.flume.core.Event;
 import com.cloudera.flume.core.EventImpl;
 import com.cloudera.flume.core.EventSource;
 import com.cloudera.util.CharEncUtils;
+import com.google.common.base.Preconditions;
 
 /**
  * Connects stdin as a source. Each line is a new event entry
@@ -36,7 +38,7 @@ import com.cloudera.util.CharEncUtils;
  * by default when using it
  */
 public class StdinSource extends EventSource.Base {
-  final static Logger LOG = Logger.getLogger(StdinSource.class.getName());
+  static final Logger LOG = LoggerFactory.getLogger(StdinSource.class);
 
   BufferedReader rd = null;
 
@@ -47,10 +49,12 @@ public class StdinSource extends EventSource.Base {
   public void close() throws IOException {
     LOG.info("Closing stdin source");
     // don't actually close stdin (because we won't be able to open it again)
+    rd = null;
   }
 
   @Override
   public Event next() throws IOException {
+    Preconditions.checkState(rd != null, "Next on unopened sink!");
     String s = rd.readLine();
     if (s == null) {
       return null; // end of stream
@@ -63,6 +67,9 @@ public class StdinSource extends EventSource.Base {
   @Override
   public void open() throws IOException {
     LOG.info("Opening stdin source");
+    if (rd != null) {
+      throw new IllegalStateException("Stdin source was already open");
+    }
     rd = new BufferedReader(new InputStreamReader(System.in));
   }
 
@@ -72,7 +79,6 @@ public class StdinSource extends EventSource.Base {
       public EventSource build(String... argv) {
         return new StdinSource();
       }
-
     };
   }
 

@@ -21,7 +21,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeConfiguration;
@@ -44,7 +45,7 @@ import com.google.common.base.Preconditions;
  */
 public class InsistentAppendDecorator<S extends EventSink> extends
     EventSinkDecorator<S> implements Reportable {
-  final static Logger LOG = Logger.getLogger(InsistentAppendDecorator.class);
+  static final Logger LOG = LoggerFactory.getLogger(InsistentAppendDecorator.class);
   final BackoffPolicy backoff;
 
   // attribute names
@@ -94,7 +95,7 @@ public class InsistentAppendDecorator<S extends EventSink> extends
    * block forever!
    */
   @Override
-  synchronized public void append(Event evt) throws IOException {
+  public void append(Event evt) throws IOException {
     List<IOException> exns = new ArrayList<IOException>();
     int attemptRetries = 0;
     appendRequests++;
@@ -120,6 +121,7 @@ public class InsistentAppendDecorator<S extends EventSink> extends
         } catch (InterruptedException e1) {
           // got an interrupted signal, bail out!
           exns.add(new IOException(e1));
+          Thread.currentThread().interrupt();
           throw MultipleIOException.createIOException(exns);
         } finally {
           attemptRetries++;
@@ -129,16 +131,20 @@ public class InsistentAppendDecorator<S extends EventSink> extends
     }
     appendGiveups++;
     // failed to start
-    throw MultipleIOException.createIOException(exns);
+    IOException ioe = MultipleIOException.createIOException(exns);
+    if (ioe == null) {
+      return;
+    }
+    throw ioe;
   }
 
   @Override
-  synchronized public void close() throws IOException {
+  public void close() throws IOException {
     super.close();
   }
 
   @Override
-  synchronized public void open() throws IOException {
+  public void open() throws IOException {
     super.open();
   }
 

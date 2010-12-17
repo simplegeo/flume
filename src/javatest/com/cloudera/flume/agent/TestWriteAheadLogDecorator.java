@@ -20,9 +20,12 @@ package com.cloudera.flume.agent;
 import java.io.File;
 import java.io.IOException;
 
-import junit.framework.TestCase;
-
-import org.apache.log4j.Logger;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeBuilder;
@@ -40,17 +43,17 @@ import com.cloudera.util.FileUtil;
 /**
  * Tests WriteAheadLogDeco's builder, multiple open close, and actual behavior.
  */
-public class TestWriteAheadLogDecorator extends TestCase {
-  static Logger LOG = Logger.getLogger(TestWriteAheadLogDecorator.class);
+public class TestWriteAheadLogDecorator {
+  static final Logger LOG = LoggerFactory.getLogger(TestWriteAheadLogDecorator.class);
   File tmpdir = null;
 
-  @Override
+  @Before
   public void setUp() {
     // change config so that the write ahead log dir is in a new uniq place
     try {
       tmpdir = FileUtil.mktempdir();
     } catch (Exception e) {
-      fail("mk temp dir failed");
+      Assert.fail("mk temp dir failed");
     }
     FlumeConfiguration conf = FlumeConfiguration.get();
     conf.set(FlumeConfiguration.AGENT_LOG_DIR_NEW, tmpdir.getAbsolutePath());
@@ -62,7 +65,7 @@ public class TestWriteAheadLogDecorator extends TestCase {
     FlumeNode node = new FlumeNode(mock, false /* starthttp */, false /* oneshot */);
   }
 
-  @Override
+  @After
   public void tearDown() {
     try {
       FileUtil.rmr(tmpdir);
@@ -71,6 +74,7 @@ public class TestWriteAheadLogDecorator extends TestCase {
     }
   }
 
+  @Test
   public void testBuilder() throws FlumeSpecException {
     // need to have global state, so instantiated a mock master
     @SuppressWarnings("unused")
@@ -88,9 +92,10 @@ public class TestWriteAheadLogDecorator extends TestCase {
     } catch (Exception e) {
       return;
     }
-    fail("unexpected fall through");
+    Assert.fail("unexpected fall through");
   }
 
+  @Test
   public void testOpenClose() throws IOException, FlumeSpecException {
     String rpt = "foo";
     String snk = " { ackedWriteAhead(100) => [console,  counter(\"" + rpt
@@ -108,6 +113,7 @@ public class TestWriteAheadLogDecorator extends TestCase {
    * ackedWriteAhead in front of it (aiming for 100 ms per batch). All events
    * should make it through after a slight delay.
    */
+  @Test
   public void testBehavior() throws FlumeSpecException, InterruptedException,
       IOException {
 
@@ -128,6 +134,6 @@ public class TestWriteAheadLogDecorator extends TestCase {
     es.close();
 
     CounterSink ctr = (CounterSink) ReportManager.get().getReportable(rpt);
-    assertEquals(count, ctr.getCount());
+    Assert.assertEquals(count, ctr.getCount());
   }
 }

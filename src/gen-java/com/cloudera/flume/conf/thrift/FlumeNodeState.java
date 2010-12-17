@@ -19,12 +19,6 @@ public enum FlumeNodeState implements TEnum {
   LOST(5),
   DECOMMISSIONED(6);
 
-  private static final Map<Integer, FlumeNodeState> BY_VALUE = new HashMap<Integer,FlumeNodeState>() {{
-    for(FlumeNodeState val : FlumeNodeState.values()) {
-      put(val.getValue(), val);
-    }
-  }};
-
   private final int value;
 
   private FlumeNodeState(int value) {
@@ -43,6 +37,23 @@ public enum FlumeNodeState implements TEnum {
    * @return null if the value is not found.
    */
   public static FlumeNodeState findByValue(int value) { 
-    return BY_VALUE.get(value);
+    switch (value) {
+      case 0:
+        return HELLO;
+      case 1:
+        return IDLE;
+      case 2:
+        return CONFIGURING;
+      case 3:
+        return ACTIVE;
+      case 4:
+        return ERROR;
+      case 5:
+        return LOST;
+      case 6:
+        return DECOMMISSIONED;
+      default:
+        return null;
+    }
   }
 }

@@ -25,22 +25,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.collector.CollectorSource;
 import com.cloudera.flume.core.EventSource;
 import com.cloudera.flume.core.PollingSource;
 import com.cloudera.flume.core.EventSource.StubSource;
+import com.cloudera.flume.handlers.avro.AvroEventSource;
+import com.cloudera.flume.handlers.console.JLineStdinSource;
 import com.cloudera.flume.handlers.debug.Log4jTextFileSource;
 import com.cloudera.flume.handlers.debug.NoNlASCIISynthSource;
 import com.cloudera.flume.handlers.debug.NoNlSynthSource;
 import com.cloudera.flume.handlers.debug.NullSource;
 import com.cloudera.flume.handlers.debug.StdinSource;
 import com.cloudera.flume.handlers.debug.SynthSource;
+import com.cloudera.flume.handlers.debug.SynthSourceRndSize;
 import com.cloudera.flume.handlers.debug.TextFileSource;
 import com.cloudera.flume.handlers.exec.ExecEventSource;
+import com.cloudera.flume.handlers.exec.ExecNioSource;
 import com.cloudera.flume.handlers.hdfs.SeqfileEventSource;
 import com.cloudera.flume.handlers.irc.IrcSource;
+import com.cloudera.flume.handlers.rpc.RpcSource;
 import com.cloudera.flume.handlers.scribe.ScribeEventSource;
 import com.cloudera.flume.handlers.syslog.SyslogTcpSource;
 import com.cloudera.flume.handlers.syslog.SyslogTcpSourceThreads;
@@ -57,7 +63,7 @@ import com.cloudera.util.Pair;
  * new sources are added.
  */
 public class SourceFactoryImpl extends SourceFactory {
-  static Logger LOG = Logger.getLogger(SourceFactoryImpl.class);
+  static final Logger LOG = LoggerFactory.getLogger(SourceFactoryImpl.class);
 
   static Object[][] sourceList = {
       // high level sources
@@ -68,9 +74,13 @@ public class SourceFactoryImpl extends SourceFactory {
 
       // low level Sources
       { "null", NullSource.builder() },
-      { "console", StdinSource.builder() },
-      { "rpcSource", ThriftEventSource.builder() },
-      { "tsource", ThriftEventSource.builder() }, // TODO (jon) deprecate this
+      { "stdin", StdinSource.builder() },
+      { "console", JLineStdinSource.builder() },
+
+      // creates AvroEventSource or ThriftEventSource
+      { "rpcSource", RpcSource.builder() },
+      { "thriftSource", ThriftEventSource.builder() },
+      { "avroSource", AvroEventSource.builder() },
       { "tSource", ThriftEventSource.builder() },
       { "text", TextFileSource.builder() }, { "tail", TailSource.builder() },
       { "multitail", TailSource.multiTailBuilder() },
@@ -79,12 +89,17 @@ public class SourceFactoryImpl extends SourceFactory {
       { "syslogUdp", SyslogUdpSource.builder() },
       { "syslogTcp", SyslogTcpSourceThreads.builder() },
       { "syslogTcp1", SyslogTcpSource.builder() },
-      { "execPeriodic", ExecEventSource.buildPeriodic() },
-      { "execStream", ExecEventSource.buildStream() },
-      { "exec", ExecEventSource.builder() },
+      { "execPeriodic", ExecNioSource.buildPeriodic() },
+      { "execStream", ExecNioSource.buildStream() },
+      { "exec", ExecNioSource.builder() },
+
+      { "execPeriodicOld", ExecEventSource.buildPeriodic() },
+      { "execStreamOld", ExecEventSource.buildStream() },
+      { "execOld", ExecEventSource.builder() },
       { "synth", SynthSource.builder() },
       { "nonlsynth", NoNlSynthSource.builder() },
       { "asciisynth", NoNlASCIISynthSource.builder() },
+      { "synthrndsize", SynthSourceRndSize.builder() },
       { "scribe", ScribeEventSource.builder() },
       { "report", PollingSource.reporterPollBuilder() },
 
