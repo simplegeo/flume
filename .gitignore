@@ -14,8 +14,12 @@ conf/flume-site.xml
 bin/.settings
 libtest/
 lib/ivy-*.jar
+<<<<<<< HEAD
 src/avro-gen-java
 src/avro/*.avpr
 /docs/
 .eclipse
 pmd_report.html
+=======
+/debian/tmp
+>>>>>>> df6d719... Ignore debian/tmp
