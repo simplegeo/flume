@@ -1,4 +1,4 @@
-flume (0.9.1+1-0sg20) lucid; urgency=low
+flume (0.9.2+1-0sg20) lucid; urgency=low
 
   [ Ben Standefer ]
   * Stub entry to change version number

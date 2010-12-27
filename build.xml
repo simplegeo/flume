@@ -817,11 +817,10 @@ to call at top-level: ant deploy-contrib compile-core-test
         <include name="src/**" />
         <include name="Makefile" />
         <include name="properties/**" />
-        <include name="src/**" />
-	<include name="docs/**" />
-	<exclude name="findbugsExclude.xml" />
-	<exclude name="libtest/findbugs-ant.jar" />
-	<exclude name="libtest/findbugs.jar" />
+        <include name="docs/**" />
+        <exclude name="findbugsExclude.xml" />
+        <exclude name="libtest/findbugs-ant.jar" />
+        <exclude name="libtest/findbugs.jar" />
       </tarfileset>
 
       <tarfileset dir="." mode="755" prefix="flume-${version}">
