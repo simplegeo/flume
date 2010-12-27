@@ -15,7 +15,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
-<a href="flumeagent.jsp">agent</a> | 
+<a href="flumeagent.jsp">node</a> | 
 <a href="staticconfig.jsp">static config</a> | 
 <a href="environment.jsp">env</a> | 
 <a href="extension.jsp">ext</a> | 

@@ -22,12 +22,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeSpecException;
 import com.cloudera.flume.conf.SinkFactory.SinkBuilder;
-import com.cloudera.flume.core.Attributes;
 import com.cloudera.flume.core.Event;
 import com.cloudera.flume.core.EventSink;
 import com.cloudera.flume.handlers.text.FormatFactory;
@@ -43,7 +43,7 @@ import com.google.common.base.Preconditions;
  * is used.
  */
 public class TextFileSink extends EventSink.Base {
-  final static Logger LOG = Logger.getLogger(TextFileSink.class.getName());
+  static final Logger LOG = LoggerFactory.getLogger(TextFileSink.class);
 
   String fname = null;
   OutputStream out = null;

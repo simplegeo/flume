@@ -50,8 +50,7 @@ public class EventImpl extends EventBaseImpl {
   /**
    * Reflection based tools (like avro) require a null constructor
    */
-  @SuppressWarnings("unused")
-  private EventImpl() {
+  public EventImpl() {
     this(new byte[0], 0, Priority.INFO, 0, "");
   }
 
@@ -95,8 +94,8 @@ public class EventImpl extends EventBaseImpl {
     super(fields);
     Preconditions.checkNotNull(s);
     Preconditions.checkArgument(s.length <= MAX_BODY_SIZE);
-    // this string construction too ~5% of exec time!
-    // , "byte length is " + s.length + " which is not < " + Short.MAX_VALUE);
+    // this string construction took ~5% of exec time!
+    // , "byte length is " + s.length + " which is not < " + MAX_BODY_SIZE);
     Preconditions.checkNotNull(pri);
     this.body = s;
     this.timestamp = timestamp;

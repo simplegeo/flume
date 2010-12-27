@@ -20,10 +20,11 @@ package com.cloudera.flume.agent;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Map.Entry;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -31,8 +32,10 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.VersionInfo;
 import com.cloudera.flume.agent.diskfailover.DiskFailoverManager;
@@ -44,6 +47,7 @@ import com.cloudera.flume.conf.FlumeBuilder;
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.cloudera.flume.conf.FlumeSpecException;
 import com.cloudera.flume.conf.LogicalNodeContext;
+import com.cloudera.flume.handlers.debug.ChokeManager;
 import com.cloudera.flume.handlers.endtoend.AckListener;
 import com.cloudera.flume.handlers.endtoend.CollectorAckListener;
 import com.cloudera.flume.reporter.MasterReportPusher;
@@ -52,6 +56,7 @@ import com.cloudera.flume.reporter.ReportManager;
 import com.cloudera.flume.reporter.Reportable;
 import com.cloudera.flume.util.FlumeVMInfo;
 import com.cloudera.flume.util.SystemInfo;
+import com.cloudera.util.CheckJavaVersion;
 import com.cloudera.util.FileUtil;
 import com.cloudera.util.NetUtils;
 import com.cloudera.util.Pair;
@@ -74,7 +79,7 @@ import com.google.common.base.Preconditions;
  * 
  */
 public class FlumeNode implements Reportable {
-  final static Logger LOG = Logger.getLogger(FlumeNode.class.getName());
+  static final Logger LOG = LoggerFactory.getLogger(FlumeNode.class);
   final static String PHYSICAL_NODE_REPORT_PREFIX = "pn-";
   static final String R_NUM_LOGICAL_NODES = "Logical nodes";
 
@@ -107,6 +112,8 @@ public class FlumeNode implements Reportable {
 
   final String physicalNodeName;
 
+  private final ChokeManager chokeMan;
+
   /**
    * A FlumeNode constructor with pluggable xxxManagers. This is used for
    * debugging and test cases. The http server is assumed not to be started, and
@@ -124,7 +131,9 @@ public class FlumeNode implements Reportable {
     this.failoverMans.put(getPhysicalNodeName(), dfMan);
     this.collectorAck = colAck;
     this.liveMan = liveman;
-
+    // As this is only for the testing puposes, just initialize the physical
+    // node limit to Max Int.
+    this.chokeMan = new ChokeManager();
     this.vmInfo = new FlumeVMInfo(PHYSICAL_NODE_REPORT_PREFIX
         + this.physicalNodeName + ".");
 
@@ -155,15 +164,20 @@ public class FlumeNode implements Reportable {
           new FlumeNodeWALNotifier(this.walMans));
       this.reportPusher = new MasterReportPusher(conf, ReportManager.get(),
           rpcMan);
+
     } else {
       this.liveMan = null;
       this.reportPusher = null;
     }
 
+    // initializing ChokeController
+    this.chokeMan = new ChokeManager();
+
     this.vmInfo = new FlumeVMInfo(PHYSICAL_NODE_REPORT_PREFIX
         + this.getPhysicalNodeName() + ".");
     this.sysInfo = new SystemInfo(PHYSICAL_NODE_REPORT_PREFIX
         + this.getPhysicalNodeName() + ".");
+
   }
 
   public FlumeNode(MasterRPC rpc, boolean startHttp, boolean oneshot) {
@@ -174,8 +188,7 @@ public class FlumeNode implements Reportable {
   public FlumeNode(String nodename, FlumeConfiguration conf, boolean startHttp,
       boolean oneshot) {
     // Use a failover-enabled master RPC, which randomizes the failover order
-    this(conf, nodename, new ThriftMultiMasterRPC(conf, true), startHttp,
-        oneshot);
+    this(conf, nodename, new MultiMasterRPC(conf, true), startHttp, oneshot);
   }
 
   public FlumeNode(FlumeConfiguration conf) {
@@ -198,7 +211,7 @@ public class FlumeNode implements Reportable {
     File f = new File(webPath);
     // absolute paths win, but if is not absolute, prefix with flume home
     if (!f.isAbsolute()) {
-      String basepath = System.getenv("FLUME_HOME");
+      String basepath = FlumeConfiguration.getFlumeHome();
       if (basepath == null) {
         LOG.warn("FLUME_HOME not set, potential for odd behavior!");
       }
@@ -236,13 +249,21 @@ public class FlumeNode implements Reportable {
     if (liveMan != null) {
       liveMan.start();
     }
+
+    if (chokeMan != null) {
+      // JVM exits if only daemons threads remain.
+      chokeMan.setDaemon(true);
+      chokeMan.start();
+    }
+
   }
 
   synchronized public void stop() {
     if (this.http != null) {
       try {
         http.stop();
-      } catch (InterruptedException e) {
+      } catch (Exception e) {
+        LOG.error("Exception stopping FlumeNode", e);
       }
     }
 
@@ -253,6 +274,11 @@ public class FlumeNode implements Reportable {
     if (liveMan != null) {
       liveMan.stop();
     }
+
+    if (chokeMan != null) {
+      chokeMan.halt();
+    }
+
   }
 
   /**
@@ -272,16 +298,16 @@ public class FlumeNode implements Reportable {
     return collectorAck;
   }
 
-  public static void logVersion(Logger log, Level level) {
-    log.log(level, "Flume " + VersionInfo.getVersion());
-    log.log(level, " rev " + VersionInfo.getRevision());
-    log.log(level, "Compiled  on " + VersionInfo.getDate());
+  public static void logVersion(Logger log) {
+    log.info("Flume " + VersionInfo.getVersion());
+    log.info(" rev " + VersionInfo.getRevision());
+    log.info("Compiled  on " + VersionInfo.getDate());
   }
 
-  public static void logEnvironment(Logger log, Level level) {
+  public static void logEnvironment(Logger log) {
     Properties props = System.getProperties();
-    for (Entry<Object,Object> p : props.entrySet()) {
-      log.log(level, "System property " + p.getKey() + "=" + p.getValue());
+    for (Entry<Object, Object> p : props.entrySet()) {
+      log.info("System property " + p.getKey() + "=" + p.getValue());
     }
   }
 
@@ -338,9 +364,14 @@ public class FlumeNode implements Reportable {
   }
 
   public static void setup(String[] argv) throws IOException {
-    logVersion(LOG, Level.INFO);
-    logEnvironment(LOG, Level.INFO);
-
+    logVersion(LOG);
+    logEnvironment(LOG);
+    // Make sure the Java version is not older than 1.6
+    if (!CheckJavaVersion.isVersionOk()) {
+      LOG
+          .error("Exiting because of an old Java version or Java version in bad format");
+      System.exit(-1);
+    }
     LOG.info("Starting flume agent on: " + NetUtils.localhost());
     LOG.info(" Working directory is: " + new File(".").getAbsolutePath());
 
@@ -378,7 +409,6 @@ public class FlumeNode implements Reportable {
       fmt.printHelp("FlumeNode", options, true);
       return;
     }
-
     // Check FlumeConfiguration file for settings that may cause node to fail.
     nodeConfigChecksOk();
 
@@ -442,7 +472,123 @@ public class FlumeNode implements Reportable {
       MemoryMonitor.setupHardExitMemMonitor(FlumeConfiguration.get()
           .getAgentMemoryThreshold());
     }
+
+    try {
+      tryKerberosLogin();
+    } catch (IOException ioe) {
+      LOG.error("Failed to kerberos login.", ioe);
+    }
+
     // hangout, waiting for other agent thread to exit.
+  }
+
+  /**
+   * This should attempts to kerberos login via a keytab if security is enabled
+   * in hadoop.
+   * 
+   * This should be able to support multiple hadoop clusters as long as the
+   * particular principal is allowed on multiple clusters.
+   * 
+   * To preserve compatibility with non security enhanced hdfs, we use
+   * reflection on various UserGroupInformation and SecurityUtil related method
+   * calls.
+   */
+  @SuppressWarnings("unchecked")
+  static void tryKerberosLogin() throws IOException {
+
+    /*
+     * UserGroupInformation is in hadoop 0.18
+     * UserGroupInformation.isSecurityEnabled() not in pre security API.
+     * 
+     * boolean useSec = UserGroupInformation.isSecurityEnabled();
+     */
+    boolean useSec = false;
+
+    try {
+      Class<UserGroupInformation> c = UserGroupInformation.class;
+      // static call, null this obj
+      useSec = (Boolean) c.getMethod("isSecurityEnabled").invoke(null);
+    } catch (Exception e) {
+      LOG.warn("Flume is using Hadoop core "
+          + org.apache.hadoop.util.VersionInfo.getVersion()
+          + " which does not support Security / Authentication: "
+          + e.getMessage());
+      return;
+    }
+
+    LOG.info("Hadoop Security enabled: " + useSec);
+    if (!useSec) {
+      return;
+    }
+
+    // At this point we know we are using a hadoop library that is kerberos
+    // enabled.
+
+    // attempt to load kerberos information for authenticated hdfs comms.
+    String principal = FlumeConfiguration.get().getKerberosPrincipal();
+    String keytab = FlumeConfiguration.get().getKerberosKeytab();
+    LOG.info("Kerberos login as " + principal + " from " + keytab);
+
+    try {
+      /*
+       * SecurityUtil not present pre hadoop 20.2
+       * 
+       * SecurityUtil.login not in pre-security Hadoop API
+       * 
+       * // Keytab login does not need to auto refresh
+       * 
+       * SecurityUtil.login(FlumeConfiguration.get(),
+       * FlumeConfiguration.SECURITY_KERBEROS_KEYTAB,
+       * FlumeConfiguration.SECURITY_KERBEROS_PRINCIPAL);
+       */
+      Class c = Class.forName("org.apache.hadoop.security.SecurityUtil");
+      // get method login(Configuration, String, String);
+      Method m = c.getMethod("login", Configuration.class, String.class,
+          String.class);
+      m.invoke(null, FlumeConfiguration.get(),
+          FlumeConfiguration.SECURITY_KERBEROS_KEYTAB,
+          FlumeConfiguration.SECURITY_KERBEROS_PRINCIPAL);
+    } catch (Exception e) {
+      LOG.error("Flume failed when attempting to authenticate with keytab "
+          + FlumeConfiguration.get().getKerberosKeytab() + " and principal '"
+          + FlumeConfiguration.get().getKerberosPrincipal() + "'", e);
+
+      // e.getMessage() comes from hadoop is worthless
+      return;
+    }
+
+    try {
+      /*
+       * getLoginUser, getAuthenticationMethod, and isLoginKeytabBased are not
+       * in Hadoop 20.2, only kerberized enhanced version.
+       * 
+       * getUserName is in all 0.18.3+
+       * 
+       * UserGroupInformation ugi = UserGroupInformation.getLoginUser();
+       * LOG.info("Auth method: " + ugi.getAuthenticationMethod());
+       * LOG.info(" User name: " + ugi.getUserName());
+       * LOG.info(" Using keytab: " +
+       * UserGroupInformation.isLoginKeytabBased());
+       */
+
+      Class<UserGroupInformation> c2 = UserGroupInformation.class;
+      // static call, null this obj
+      UserGroupInformation ugi = (UserGroupInformation) c2.getMethod(
+          "getLoginUser").invoke(null);
+      String authMethod = c2.getMethod("getAuthenticationMethod").invoke(ugi)
+          .toString();
+      boolean keytabBased = (Boolean) c2.getMethod("isLoginKeytabBased")
+          .invoke(ugi);
+
+      LOG.info("Auth method: " + authMethod);
+      LOG.info(" User name: " + ugi.getUserName());
+      LOG.info(" Using keytab: " + keytabBased);
+    } catch (Exception e) {
+      LOG.error("Flume was unable to dump kerberos login user"
+          + " and authentication method", e);
+      return;
+    }
+
   }
 
   public static void main(String[] argv) {
@@ -543,6 +689,10 @@ public class FlumeNode implements Reportable {
   // TODO (jon) rename when liveness manager renamed
   public LivenessManager getLivenessManager() {
     return liveMan;
+  }
+
+  public ChokeManager getChokeManager() {
+    return chokeMan;
   }
 
   @Override

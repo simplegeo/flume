@@ -18,12 +18,6 @@ public enum Priority implements TEnum {
   DEBUG(4),
   TRACE(5);
 
-  private static final Map<Integer, Priority> BY_VALUE = new HashMap<Integer,Priority>() {{
-    for(Priority val : Priority.values()) {
-      put(val.getValue(), val);
-    }
-  }};
-
   private final int value;
 
   private Priority(int value) {
@@ -42,6 +36,21 @@ public enum Priority implements TEnum {
    * @return null if the value is not found.
    */
   public static Priority findByValue(int value) { 
-    return BY_VALUE.get(value);
+    switch (value) {
+      case 0:
+        return FATAL;
+      case 1:
+        return ERROR;
+      case 2:
+        return WARN;
+      case 3:
+        return INFO;
+      case 4:
+        return DEBUG;
+      case 5:
+        return TRACE;
+      default:
+        return null;
+    }
   }
 }

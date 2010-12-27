@@ -21,14 +21,14 @@
 Before you can run these subtargets directly, you need
 to call at top-level: ant deploy-contrib compile-core-test
 -->
-<project name="flume" default="tar" xmlns:ivy="antlib:org.apache.ivy.ant">
+<project name="flume" default="jar-test" xmlns:ivy="antlib:org.apache.ivy.ant">
   <taskdef resource="net/sf/antcontrib/antcontrib.properties">
     <classpath>
       <pathelement location="${basedir}/libbuild/ant-contrib-1.0b3.jar"/>
     </classpath>
   </taskdef>
   <property name="name" value="flume"/>
-  <property name="version" value="0.9.1-dev"/>
+  <property name="version" value="0.9.2"/>
   <property name="final.name" value="${name}-${version}"/>
   <property name="year" value="2009-2010"/>
 
@@ -37,7 +37,7 @@ to call at top-level: ant deploy-contrib compile-core-test
   <property name="build.classes" value="${build.dir}/classes"/>
   <property name="build.encoding" value="ISO-8859-1"/>
   <property name="build.test" value="${build.dir}/test"/>
-  <property name="build.docs" value="${build.dir}/docs" />
+  <property name="build.docs" value="${basedir}/docs" />
   <property name="build.javadoc" value="${build.docs}/api" />
 
   <property name="build.perf" value="${build.dir}/perf"/>
@@ -52,12 +52,17 @@ to call at top-level: ant deploy-contrib compile-core-test
   <property name="aho.src.dir" value="${src.dir}/ahocorasick"/>
   <property name="test.src.dir" value="${src.dir}/javatest"/>
   <property name="perf.src.dir" value="${src.dir}/javaperf"/>
+  <property name="docs.dir" value="${basedir}/docs/"/>
+  <property name="docs.src.dir" value="${src.dir}/docs"/>
   <property name="conf.dir" value="${basedir}/conf"/>
   <property name="data.dir" value="${src.dir}/data"/>  	
   <property name="perf.data.dir" value="${src.dir}/javaperf/data"/>  	
 
   <property name="build.webapps" value="${build.dir}/webapps"/>
   <property name="src.webapps" value="${basedir}/src/webapps"/>
+
+  <property name="avro.src.dir" value="${src.dir}/avro"/>
+  <property name="avro.gen.dir" value="${basedir}/src/avro-gen-java" />
 
   <property name="thrift.src.dir" value="${src.dir}/thrift"/>
   <property name="thrift.gen.dir" value="${basedir}/src/gen-java"/>
@@ -147,12 +152,15 @@ to call at top-level: ant deploy-contrib compile-core-test
   <target name="init">
     <mkdir dir="${build.dir}"/>
     <mkdir dir="${build.dir}/flume"/>
-    <mkdir dir="${build.dir}/flume/docs"/>
     <mkdir dir="${build.classes}"/>
     <mkdir dir="${test.build.dir}"/>
     <mkdir dir="${test.build.classes}"/>
     <mkdir dir="${thrift.gen.dir}"/>
+    <mkdir dir="${avro.gen.dir}" />
     <mkdir dir="${basedir}/libtest"/>
+    <mkdir dir="${build.docs}"/>
+    <mkdir dir="${build.docs}/UserGuide"/>
+    <mkdir dir="${build.docs}/Cookbook"/>
     <mkdir dir="${ivy.tools.lib}"/>
 
     <condition property="ivy.jar.exists">
@@ -175,7 +183,7 @@ to call at top-level: ant deploy-contrib compile-core-test
         <exclude name="**/*.jsp" />
       </fileset>
     </copy>
-
+    <tstamp/>
 
   </target>
 
@@ -314,6 +322,39 @@ to call at top-level: ant deploy-contrib compile-core-test
   </target>
 
   <!-- ========================== -->
+  <!-- avro  -->
+  <!-- ========================== -->
+  <target name="avro-call">
+    <echo message="Converting avro-dl file: ${avrofile}"/>
+    <path id="avro.classpath">
+      <fileset dir="${lib.dir}">
+        <include name="**/*.jar"/>
+      </fileset>
+    </path>
+    <echo message="Compiling avro file: ${avrofile}.avpr"/>
+    <java classname="org.apache.avro.tool.Main">
+      <classpath refid="avro.classpath" />
+      <arg value="idl" />
+      <arg value="${avrofile}" />
+      <arg value="${avrofile}.avpr" />
+    </java>
+    <java classname="org.apache.avro.specific.SpecificCompiler">
+      <classpath refid="avro.classpath" />
+      <arg value="${avrofile}.avpr" />
+      <arg value="${avro.gen.dir}" />
+    </java>
+
+
+  </target>
+
+  <target name="avro-gen">
+    <foreach target="avro-call" param="avrofile">
+      <fileset dir="${avro.src.dir}">
+        <include name="**/*.avdl"/>
+      </fileset>
+    </foreach>
+  </target>
+  <!-- ========================== -->
   <!-- thrift  -->
   <!-- ========================== -->
   <target name="call-thrift">
@@ -350,7 +391,7 @@ to call at top-level: ant deploy-contrib compile-core-test
     </foreach>
   </target>
 
-  <target name="generate-all" depends="init, thrift-gen, antlr-gen, antlr-shell-gen" />
+  <target name="generate-all" depends="init, thrift-gen, antlr-gen, antlr-shell-gen, avro-gen" />
 
   <target name="compile-gen" depends="generate-all">
     <!-- dependendecy for antlr parsers -->
@@ -381,11 +422,11 @@ to call at top-level: ant deploy-contrib compile-core-test
       of the output directory -->
     <exec executable="sh">
        <arg line="src/saveVersion.sh ${version}"/>
-      <env key="FLUME_REVISION" value="${cloudera.hash}" /> 
+      <!--  <env key="HADOOP_REVISION" value="${cloudera.hash}" /> -->
     </exec>
     <javac 
      encoding="${build.encoding}" 
-     srcdir="${core.src.dir};${thrift.gen.dir}"
+     srcdir="${core.src.dir};${thrift.gen.dir};${avro.gen.dir}"
      includes="com/cloudera/flume/package-info.java"
      destdir="${build.classes}"
      debug="${javac.debug}"
@@ -404,7 +445,7 @@ to call at top-level: ant deploy-contrib compile-core-test
     <!-- Compile Java files (excluding JSPs) checking warnings -->
     <javac 
      encoding="${build.encoding}" 
-     srcdir="${core.src.dir};${thrift.gen.dir}"
+     srcdir="${core.src.dir};${thrift.gen.dir};${avro.gen.dir}"
      includes="com/cloudera/**/*.java"
      destdir="${build.classes}"
      debug="${javac.debug}"
@@ -417,7 +458,7 @@ to call at top-level: ant deploy-contrib compile-core-test
     </javac>   
     <javac 
      encoding="${build.encoding}" 
-     srcdir="${core.src.dir};${thrift.gen.dir}"
+     srcdir="${core.src.dir};${thrift.gen.dir};${avro.gen.dir}"
      includes="org/apache/**/*.java"
      destdir="${build.classes}"
      debug="${javac.debug}"
@@ -667,26 +708,92 @@ to call at top-level: ant deploy-contrib compile-core-test
   </target>  
 
   <!-- ================================================================== -->
-  <!-- Make Docs (README.html)                                            -->
+  <!-- Make Docs (UserGuide, Cookbook)                    -->
+  <!--  converts to docbook and then to html to avoid GPL code insertion  -->
+  <!--  in ubuntu requires pkgs: asciidoc,source-highlight,graphviz       -->
   <!-- ================================================================== -->
-  <target name="docs" depends="init" description="Build documentation">
+  <target name="docs" depends="userguide,cookbook,docindex" description="Build documentation"/>
 
+  <uptodate property="userguide.uptodate"
+	    targetfile="${build.docs}/UserGuide/index.html">
+    <srcfiles dir="${docs.src.dir}/UserGuide" includes="*"/>
+    <srcfiles dir="${docs.src.dir}/web" includes="*"/>
+  </uptodate>
+  <uptodate property="cookbook.uptodate"
+	    targetfile="${build.docs}/Cookbook/index.html" >
+    <srcfiles dir="${docs.src.dir}/cookbook" includes="*"/>
+    <srcfiles dir="${docs.src.dir}/web" includes="*"/>
+  </uptodate>
+  <uptodate property="docindex.uptodate"
+	    targetfile="${build.docs}/index.html" >
+    <srcfiles dir="${docs.src.dir}/web" includes="*"/>
+  </uptodate>
+
+  
+  <target name="userguide" depends="init" description="Build UserGuide" unless="userguide.uptodate" >
     <exec executable="asciidoc" dir="${basedir}" failonerror="true">
-      <arg line="-a toc -o ${build.dir}/flume/docs/UserGuide.html ${basedir}/src/docs/UserGuide/FullGuide"/>
+      <arg line="-a revnumber=${version} -a revdate='${TODAY}' -b docbook -o ${build.docs}/UserGuide/index.xml ${docs.src.dir}/UserGuide/FullGuide"/>
     </exec>
 
-    <copy todir="${build.dir}/flume/docs/">
-      <fileset dir="${basedir}/src/docs/UserGuide" includes="**/*.png"/>
+    <exec executable="xmlto" dir="${basedir}" failonerror="true">
+      <arg line="--skip-validation -o ${build.docs}/UserGuide -m src/docs/web/html.xsl html-nochunks ${build.docs}/UserGuide/index.xml "/>
+    </exec>
+
+    <delete file="${build.docs}/UserGuide/index.xml" />
+
+    <copy todir="${docs.dir}/UserGuide">
+      <fileset dir="${docs.src.dir}/web" includes="**"/>
+    </copy>
+
+    <copy todir="${docs.dir}/UserGuide">
+      <fileset dir="${docs.src.dir}/UserGuide" includes="**/*.png"/>
+    </copy>
+  </target>
+
+  <target name="cookbook" depends="init" description="Build documentation" unless="cookbook.uptodate">
+    <exec executable="asciidoc" dir="${basedir}" failonerror="true">
+      <arg line="-a revnumber=${version}  -a revdate='${TODAY}'  -b docbook -o ${build.docs}/Cookbook/index.xml ${docs.src.dir}/cookbook/Cookbook"/>
+    </exec>
+
+    <exec executable="xmlto" dir="${basedir}" failonerror="true">
+      <arg line="--skip-validation -o ${build.docs}/Cookbook -m src/docs/web/html.xsl html-nochunks ${build.docs}/Cookbook/index.xml "/>
+    </exec>
+
+    <delete file="${build.docs}/cookbook/index.xml" />
+
+    <copy todir="${docs.dir}/Cookbook">
+      <fileset dir="${docs.src.dir}/web" includes="**"/>
+    </copy>
+
+    <copy todir="${docs.dir}/Cookbook">
+      <fileset dir="${docs.src.dir}/cookbook" includes="**/*.png"/>
+    </copy>
+  </target>
+
+
+  <target name="docindex" depends="init" description="Build Index Page for docs" unless="docindex.uptodate">
+    <exec executable="asciidoc" dir="${basedir}" failonerror="true">
+      <arg line="-a revnumber=${version} -a revdate='${TODAY}' -b docbook -o ${build.docs}/index.xml ${docs.src.dir}/web/index.txt"/>
+    </exec>
+
+    <exec executable="xmlto" dir="${basedir}" failonerror="true">
+      <arg line="--skip-validation -o ${build.docs} -m src/docs/web/html.xsl html-nochunks ${build.docs}/index.xml "/>
+    </exec>
+
+    <delete file="${build.docs}/index.xml" />
+
+    <!-- there are 4 copies of this.  super inefficient -->
+    <copy todir="${docs.dir}">
+      <fileset dir="${docs.src.dir}/web" includes="**"/>
     </copy>
 
   </target>
-  
 
 
   <!-- ================================================================== -->
   <!-- Make flume.tgz                                                     -->
   <!-- ================================================================== -->
-  <target name="tar" depends="jar,jar-test" description="Make flume.tar">
+  <target name="tar" depends="jar,jar-test,docs" description="Make flume.tar">
     <tar compression="gzip" destfile="${build.dir}/flume-${version}.tar.gz">
       <tarfileset dir="build" mode="644"  prefix="flume-${version}">
         <include name="*.jar" />
@@ -699,6 +806,10 @@ to call at top-level: ant deploy-contrib compile-core-test
         <include name="cloudera/**" />
         <include name="conf/**" />
         <include name="DEVNOTES" />
+        <include name="RELEASENOTES" />
+        <include name="LICENSE" />
+        <include name="README" />
+        <include name="NOTICE" />
         <include name="eclipse/**" />
         <include name="ivy.xml" />
         <include name="lib/**" />
@@ -706,10 +817,10 @@ to call at top-level: ant deploy-contrib compile-core-test
         <include name="src/**" />
         <include name="Makefile" />
         <include name="properties/**" />
-        <include name="src/**" />
-	<exclude name="findbugsExclude.xml" />
-	<exclude name="libtest/findbugs-ant.jar" />
-	<exclude name="libtest/findbugs.jar" />
+        <include name="docs/**" />
+        <exclude name="findbugsExclude.xml" />
+        <exclude name="libtest/findbugs-ant.jar" />
+        <exclude name="libtest/findbugs.jar" />
       </tarfileset>
 
       <tarfileset dir="." mode="755" prefix="flume-${version}">
@@ -777,6 +888,7 @@ to call at top-level: ant deploy-contrib compile-core-test
       <jvmarg line="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=2601" />
       -->
       <env key="FLUME_HOME" value="${basedir}" />
+      <sysproperty key="javax.xml.parsers.DocumentBuilderFactory" value="com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl" />
       <sysproperty key="java.library.path" value="${lib.dir}" />
       <sysproperty key="test.build.data" value="${build.test}/data"/>
       <sysproperty key="build.test" value="${build.test}"/>
@@ -937,6 +1049,8 @@ to call at top-level: ant deploy-contrib compile-core-test
                 output="${build.dir.eclipse-main-classes}" />
         <source path="${aho.src.dir}"
                 output="${build.dir.eclipse-main-classes}" />
+        <source path="${avro.gen.dir}"
+                output="${build.dir.eclipse-main-classes}" />
         <source path="${thrift.gen.dir}"
                 output="${build.dir.eclipse-main-classes}"
                 excluding="com/cloudera/flume/conf/RuntimeRecognitionException.java" />
@@ -974,6 +1088,7 @@ to call at top-level: ant deploy-contrib compile-core-test
     <echo message="Cleaning generated files and stuff"/>
     <delete dir="${build.dir}" />
     <delete dir="${thrift.gen.dir}" />
+    <delete dir="${avro.gen.dir}" />
   </target>
 
   <!-- ================================================================== -->

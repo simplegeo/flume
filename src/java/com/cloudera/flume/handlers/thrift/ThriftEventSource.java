@@ -24,12 +24,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.log4j.Logger;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TBinaryProtocol.Factory;
 import org.apache.thrift.server.TSaneThreadPoolServer;
 import org.apache.thrift.transport.TSaneServerSocket;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.cloudera.flume.conf.SourceFactory.SourceBuilder;
@@ -41,7 +42,8 @@ import com.cloudera.util.Clock;
 import com.google.common.base.Preconditions;
 
 /**
- * This sets up the port that listens for incoming flume event rpc calls.
+ * This sets up the port that listens for incoming flume event rpc calls using
+ * Thrift.
  */
 public class ThriftEventSource extends EventSource.Base {
   final static int DEFAULT_QUEUE_SIZE = FlumeConfiguration.get()
@@ -49,7 +51,7 @@ public class ThriftEventSource extends EventSource.Base {
   final static long MAX_CLOSE_SLEEP = FlumeConfiguration.get()
       .getThriftCloseMaxSleep();
 
-  final static Logger LOG = Logger.getLogger(ThriftEventSource.class);
+  static final Logger LOG = LoggerFactory.getLogger(ThriftEventSource.class);
 
   public static final String A_QUEUE_CAPACITY = "queueCapacity";
   public static final String A_QUEUE_FREE = "queueFree";
@@ -183,6 +185,9 @@ public class ThriftEventSource extends EventSource.Base {
         Thread.sleep(100);
       } catch (InterruptedException e) {
         LOG.error("Unexpected interrupt of close " + e.getMessage(), e);
+        Thread.currentThread().interrupt();
+        closed = true;
+        throw new IOException(e);
       }
     }
 
@@ -221,10 +226,10 @@ public class ThriftEventSource extends EventSource.Base {
 
   public static SourceBuilder builder() {
     return new SourceBuilder() {
-
       @Override
       public EventSource build(String... argv) {
-        Preconditions.checkArgument(argv.length == 1, "usage: tSource(port)");
+        Preconditions.checkArgument(argv.length == 1,
+            "usage: thriftSource(port)");
 
         int port = Integer.parseInt(argv[0]);
 

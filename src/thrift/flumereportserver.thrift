@@ -15,18 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-# A simple Report server
-namespace java com.cloudera.flume.reporter.server
+# A simple Report server using Thrift
+namespace java com.cloudera.flume.reporter.server.thrift
 
-struct FlumeReport {
+struct ThriftFlumeReport {
   3: map<string, string> stringMetrics,
   4: map<string, i64> longMetrics,
   5: map<string, double> doubleMetrics
 }
 
-service FlumeReportServer {
+service ThriftFlumeReportServer {
   // returns a serializable report with given name or null if report doesn't exist
-  map<string, FlumeReport> getAllReports(),
+  map<string, ThriftFlumeReport> getAllReports(),
   // returns a map of reports in serializable form
-  FlumeReport getReportByName(1: string reportName),
+  ThriftFlumeReport getReportByName(1: string reportName),
 }

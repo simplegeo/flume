@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.google.common.collect.Multimap;
 
 /**
@@ -54,9 +54,22 @@ abstract public class ConfigStore {
   abstract public void addLogicalNode(String physNode, String logicNode);
 
   /**
+   * This adds/updates the <chokeId> to <limit> Map for the particular physical
+   * node. The limit is in KB/sec, and puts a approximate upperbound on the
+   * number of bytes which can be shipped across this choke.
+   */
+  abstract public void addChokeLimit(String physNode, String chokeID, int limit);
+
+  /**
    * This get the list of logical nodes associated with a physical node.
    */
   abstract public List<String> getLogicalNodes(String physNode);
+
+  /**
+   * This get the list of ChokeIds and their corresponding ChokeLimit associated
+   * with a physical node.
+   */
+  abstract public Map<String, Integer> getChokeMap(String physNode);
 
   /**
    * This gets the entire mapping of physical nodes to sets of logical nodes.
@@ -76,7 +89,7 @@ abstract public class ConfigStore {
   abstract public void unmapLogicalNode(String physNode, String logicNode);
 
   /**
-   * Remove a logical node from the logical node data flow mapping. 
+   * Remove a logical node from the logical node data flow mapping.
    */
   abstract public void removeLogicalNode(String logicNode) throws IOException;
 

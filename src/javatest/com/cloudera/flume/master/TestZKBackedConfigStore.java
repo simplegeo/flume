@@ -32,7 +32,8 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -44,13 +45,16 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.cloudera.flume.agent.LogicalNode;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.conf.FlumeConfiguration;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
 import com.cloudera.util.Clock;
 import com.cloudera.util.FileUtil;
+import com.cloudera.util.Pair;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 
 public class TestZKBackedConfigStore {
-  protected static Logger LOG = Logger.getLogger(TestZKBackedConfigStore.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(TestZKBackedConfigStore.class);
 
   /**
    * Test that set and get work correctly, and that recovery after restart works
@@ -206,6 +210,36 @@ public class TestZKBackedConfigStore {
   }
 
   /**
+   * Test that watches are fired correctly for ChokeMap.
+   */
+  @Test
+  public void testZBCSChokeWatches() throws IOException, InterruptedException {
+    FlumeConfiguration cfg = FlumeConfiguration.createTestableConfiguration();
+    cfg.set(FlumeConfiguration.MASTER_ZK_SERVERS, "localhost:2181:3181:4181");
+    File tmp = FileUtil.mktempdir();
+    cfg.set(FlumeConfiguration.MASTER_ZK_LOGDIR, tmp.getAbsolutePath());
+    cfg.setBoolean(FlumeConfiguration.MASTER_ZK_USE_EXTERNAL, false);
+    ZooKeeperService.getAndInit(cfg);
+
+    ZooKeeperConfigStore store = new ZooKeeperConfigStore();
+    store.init();
+    ZooKeeperConfigStore store2 = new ZooKeeperConfigStore();
+    store2.init();
+
+    store.addChokeLimit("vb", "a", 1000);
+    // There is no convenient way to avoid this sleep
+    Thread.sleep(2000);
+
+    // Check that the watch has happened and that the new value
+    // will be correctly read
+    assertEquals(1000, (int) (store2.getChokeMap("vb").get("a")));
+    store.shutdown();
+    store2.shutdown();
+    ZooKeeperService.get().shutdown();
+    FileUtil.rmr(tmp);
+  }
+
+  /**
    * Test disconnection
    */
   @Test
@@ -254,9 +288,11 @@ public class TestZKBackedConfigStore {
       tmp = FileUtil.mktempdir();
     }
 
+    @Override
     public void run() {
-      cfg.set(FlumeConfiguration.MASTER_ZK_SERVERS,
-          "localhost:2181:3181:4181,localhost:2182:3182:4182,localhost:2183:3183:4183");
+      cfg
+          .set(FlumeConfiguration.MASTER_ZK_SERVERS,
+              "localhost:2181:3181:4181,localhost:2182:3182:4182,localhost:2183:3183:4183");
       cfg.set(FlumeConfiguration.MASTER_SERVERS,
           "localhost,localhost,localhost");
       cfg.set(FlumeConfiguration.MASTER_ZK_LOGDIR, tmp.getAbsolutePath());
@@ -409,57 +445,6 @@ public class TestZKBackedConfigStore {
   }
 
   /**
-   * Test that a bad configuration is correctly ignored. Bad configurations
-   * shouldn't necessarily happen, but if ZK dies in the middle of a write for
-   * some reason it's worth being defensive about this.
-   */
-  @Test
-  public void testBadConfigurationIgnored() throws IOException,
-      InterruptedException, KeeperException {
-    File tmp = FileUtil.mktempdir();
-    FlumeConfiguration cfg = FlumeConfiguration.createTestableConfiguration();
-    cfg.set(FlumeConfiguration.MASTER_ZK_LOGDIR, tmp.getAbsolutePath());
-    cfg.set(FlumeConfiguration.MASTER_ZK_SERVERS, "localhost:2181:3181:4181");
-    cfg.setInt(FlumeConfiguration.MASTER_SERVER_ID, 0);
-
-    ZooKeeperService zk = new ZooKeeperService();
-    zk.init(cfg);
-
-    ZooKeeperConfigStore store = new ZooKeeperConfigStore(zk);
-    store.init();
-    String defaultFlowName = cfg.getDefaultFlowName();
-    store.setConfig("foo", defaultFlowName, "bar", "baz");
-
-    ZKClient client = new ZKClient("localhost:2181");
-    client.init();
-    Stat stat = new Stat();
-
-    byte[] bytes = client.getData("/flume-cfgs/cfg-0000000000", false, stat);
-
-    String badCfg = new String(bytes)
-        + "\nunparseable-config\n1,1,default-flow@@bar : null | null;";
-
-    // This will trigger a reload with a couple of bad configs, both of which
-    // should be ignored and the last (good) line should still be parsed in
-    client.create("/flume-cfgs/cfg-", badCfg.getBytes(), Ids.OPEN_ACL_UNSAFE,
-        CreateMode.PERSISTENT_SEQUENTIAL);
-    
-    // This sleep is ugly, but we have to wait for the watch to fire
-    Clock.sleep(2000);
-    
-    FlumeConfigData cfgData = store.getConfig("bar");
-    client.close();
-    zk.shutdown();
-    FileUtil.rmr(tmp);
-
-    assertEquals("default-flow", cfgData.flowID);
-    assertEquals("null", cfgData.sourceConfig);
-    assertEquals("null", cfgData.sinkConfig);
-    assertEquals(1, cfgData.getSinkVersion());
-    assertEquals(1, cfgData.getSourceVersion());
-  }
-
-  /**
    * This test creates a zkcs and then hijacks its session through another
    * client. Then we try to use the zkcs to make sure that it's reconnected
    * correctly.
@@ -511,12 +496,82 @@ public class TestZKBackedConfigStore {
     // Force a cfg into ZK to be reloaded by the (hopefully functioning) store
     updatingClient.create("/flume-cfgs/cfg-", badCfg.getBytes(),
         Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
-    
+
     assertTrue(store.client.zk.getSessionId() != sessionid);
-    
+
     // This sleep is ugly, but we have to wait for the watch to fire
     Clock.sleep(2000);
 
     assertEquals("null", store.getConfig("bur").getSinkConfig());
+  }
+
+  /**
+   * Test that Avro-based serialization of phys->logical node maps works
+   */
+  @Test
+  public void testSerializeNodeMap() throws IOException {
+    ListMultimap<String, String> nodeMap = ArrayListMultimap
+        .<String, String> create();
+    nodeMap.put("foo", "bar");
+    nodeMap.put("foo", "baz");
+    nodeMap.put("foz", "bat");
+    byte[] serialized = ZooKeeperConfigStore.serializeNodeMap(nodeMap);
+    List<Pair<String, List<String>>> ret = ZooKeeperConfigStore
+        .deserializeNodeMap(serialized);
+
+    ListMultimap<String, String> outMap = ArrayListMultimap
+        .<String, String> create();
+    for (Pair<String, List<String>> p : ret) {
+      outMap.putAll(p.getLeft(), p.getRight());
+    }
+    assertEquals(nodeMap, outMap);
+  }
+
+  /**
+   * Test that Avro-based serialization of node configs works
+   */
+  @Test
+  public void testSerializeConfigs() throws IOException {
+    Map<String, FlumeConfigData> cfgmap = new HashMap<String, FlumeConfigData>();
+    FlumeConfigData fcd = new FlumeConfigData();
+    fcd.flowID = "my-flow";
+    fcd.sinkConfig = "my-sink";
+    fcd.sourceConfig = "my-source";
+    fcd.timestamp = 10L;
+    fcd.sinkVersion = 10;
+    fcd.sourceVersion = 100;
+    byte[] serialized = ZooKeeperConfigStore.serializeConfigs(cfgmap);
+
+    Map<String, FlumeConfigData> outmap = ZooKeeperConfigStore
+        .deserializeConfigs(serialized);
+
+    assertEquals(cfgmap, outmap);
+  }
+
+  /**
+   * Test that Avro-based serialization of chokemap works
+   */
+  @Test
+  public void testSerializeChokeMap() throws IOException {
+    Map<String, Map<String, Integer>> chokeMap = new HashMap<String, Map<String, Integer>>();
+
+    // add bunch of ChokeIds in the map, serialize and then de-serialize it and
+    // make sure the returned chokemap is the same.
+    Map<String, Integer> tempMapA = new HashMap<String, Integer>();
+    Map<String, Integer> tempMapB = new HashMap<String, Integer>();
+
+    tempMapA.put("A", 1000);
+    tempMapA.put("Z", 1000);
+
+    tempMapB.put("B", 1000);
+
+    chokeMap.put("foo1", tempMapA);
+    chokeMap.put("foo2", tempMapB);
+
+    byte[] serialized = ZooKeeperConfigStore.serializeChokeMap(chokeMap);
+    Map<String, Map<String, Integer>> ret = ZooKeeperConfigStore
+        .deserializeChokeMap(serialized);
+
+    assertEquals(chokeMap, ret);
   }
 }
