@@ -1,3 +1,651 @@
+flume (0.9.1+1-0sg24) UNRELEASED; urgency=low
+
+  [ Henry Robinson ]
+  * First commit
+  * Initial commit
+
+  [ Jonathan Hsieh ]
+  * AUTOGEN: changes due to NodeStatus->FlumeNodeStatus
+  * CDH-1386: flume platform support for flows/groups - quick refactor
+    and synchronization added - test flow isolation alone - tests in
+    conjuntion with failovers and logical translattions - Integration
+    with flowed failovers - fixed loadConfigFile in flowconfigmanager -
+    fix due to CDH-1379
+
+  [ Henry Robinson ]
+  * Add 'lastSeenDeltaMillis' to FlumeNodeStatus
+
+  [ Jonathan Hsieh ]
+  * CDH-1433: Code updates from going through pseudo-dist tutorial. -
+    expose more info to users in simple web application. - better css
+    for agents/masters - add physical node + hostname to status display
+  * IVY: added ivy-retrieved-all to get all ivy stuff
+
+  [ Henry Robinson ]
+  * Remove lock acquisition bottleneck for ProcessTagger
+
+  [ newalex ]
+  * CLOUDERA-BUILD. Adding ivy into the tarball artifact Description: We
+    need ivy to sucessfully make the tarball  von neumann Author: Alex
+    Newman Reason: Bug
+
+  [ Jonathan Hsieh ]
+  * CDH-1453: first try of ant build should have autoversion info
+    instead of unknown
+  * FIX: adding usage string to 'value' builder
+  * AUTOGEN: update due to lastSeenDeltaMillis thrift update (e6d7a4)
+
+  [ newalex ]
+  * CLOUDERA-BUILD. Repair tarball for flume Author: Alex Newman
+
+  [ phunt ]
+  * CDH-1452: don't track string metrics with null values - thrift fails
+
+  [ Jonathan Hsieh ]
+  * CDH-1432: Master didn't handle unparseable sources/sinks - Made
+    configManager write stricter, making sure src/sink are parseable and
+    instantiable
+  * CDH-1472: flume incorrectly resolving port specified in
+    CollectorSource - Separate old collectorSource and add
+    autoCollectorSource for translation style.
+  * CDH-1475: Fix flume spec NPE on DFO autogen and no collectors -
+    tests for NPE for DFO collector transform - parameterized system-
+    style NPE test
+  * CDH-1372: Fix intermittent TestFlumeNode.testFlumeNodeReconnect
+    failure
+  * CDH-1444: fix flume node heartbeat hangs with bad configuration -
+    lazy opening of sources/sinks to defer to driver thread. - some
+    tests changed due to semantics changes
+  * CDH-1530: Bump to v0.9.0
+  * CDH-1530: Update webapps symlink for git repo - Updated devnotes
+    with more details about jsp files
+  * CDH-1537: Add flume fail source
+
+  [ phunt ]
+  * CDH-1378: added reporting for sink/source event count/bytes
+
+  [ Henry Robinson ]
+  * fixed 3 tests and cleaned up the FlumeShell - added ability to
+    specify report server port (CP)
+  * CDH-1378: Fixes to report management in logical nodes / physical
+    nodes
+  * Fix Context.getParent
+  * Add ReportTestingContext so that counters register with
+    ReportManager for tests.
+  * Ignoring currently unfixable tests in TestFlumeShell
+  * Improve behaviour when bad configuration is stored in ZK.
+  * BUG: zkcs was not incrementing counter on remove logical node
+  * CDH-1520: Fix bug if node doesn't have flow
+  * CDH-1521: Unmapped nodes appear as LOST
+  * Updated gen-java for CDH-1521
+
+  [ Jonathan Hsieh ]
+  * CDH-1537: fix exceptions that show up with flume dump
+  * CDH-1531: Flume 0.9.0 release notes
+
+  [ Henry Robinson ]
+  * CDH-1462: Make ZKClient handle SessionExpired correctly
+  * Update the number of reports expected in TestFlumeNode, which has
+    increased by one.
+  * Add sleeps to new ZKBackedConfigStore tests to ensure that watches
+    fire, and ignore session test for now.
+
+  [ Jonathan Hsieh ]
+  * CDH-1531: Add some more legalese (LICENSE, NOTICE)
+  * Adding links to contact community, support, and developers.
+
+  [ phunt ]
+  * FLUME-12: add eclipse project generation to flume build.xml
+
+  [ Jonathan Hsieh ]
+  * FLUME-8: .gitignore file missing from repo
+  * FLUME-4: Fix TestConcurrentDFOMan.* fails intermittently
+  * FLUME-22: Flume 0.3.0 documentation source
+  * FLUME-7: Flume node gets into a bad state if the last good config
+    gets set to a bad state. - Rename LogicalNodeTest->TestLogicalNode -
+    Make logical node error behavior not attempt to reload - Add tests
+    to solidify error semantics of logical nodes and logical node
+    drivers
+  * FLUME-14: Docs typo in flow isolation section
+  * FLUME-43: Flume's flume.master.servers can accept masters with :'s
+    in them which can cause unexpected problems.
+  * FLUME-38: Duplicate logical->physical mappings
+  * FLUME-28: bump flume version in build.xml to 0.9.1-dev
+  * FLUME-26: Add a directory tail source - Revive DirWatcher - Updated
+    license, added RegexFilter, and updated tests to JUnit4 - tail dir
+    source - updates to dir watcher to remove matched and add filter to
+    create - added builder tests - added docs for TailDir
+  * FLUME-9: DFO's subsink should survive errors. - add insistent append
+    - fixed ThriftEventSource.next, verifying dfo behavior - improve
+    logging messages - updated to get/set*Metric instead of Attributes -
+    fix that clears up maxsinglesleep vs cumulative sleep
+  * FLUME-24: Integrate corrected DFO translation into FlumeNode - new
+    translations for best effort chains and DFO chains - Added
+    insistentAppend to AgentDFO* - updated tests to go along with new
+    translations
+  * FLUME-44: Flume nodes are in DECOMMISSIONED state if master is
+    killed an brought back up
+  * FLUME-71: Fix config entered with no namenode breaks config store
+  * FLUME-55: Fix bug in e2e translation with decorators
+  * FLUME-67: Fix LazyOpenDecorator closes subsink even if it has only
+    been logically opened
+  * FLUME-68: Fix default logicalnode's WAL and DFO log write to
+    inconsistent log dir
+
+  [ phunt ]
+  * FLUME-36: use framed transport and also disable strict binary
+    protocol reads/writes (matches scribed server)
+  * FLUME-72: bin/flume cleanup; echo command option, fix classpaths
+  * FLUME-47: cleaned up DEVNOTES, specifically around eclipse
+    integration
+  * FLUME-85: On server startup, environment should be logged
+  * FLUME-84: provide access to static config via jsps
+  * FLUME-83: Provide mechanism to query Flume daemons for all valid
+    sources, sinks, and decorators
+  * FLUME-83: Provide mechanism to query Flume daemons for all valid
+    sources, sinks, and decorators - fixed a couple typos
+
+  [ Jonathan Hsieh ]
+  * FLUME-69: Improve collectorSink related comments and logs - Change
+    logical node has no config message on node to DEBUG log level -
+    Added string argument for info as StubSink argument - adding thread
+    info to log4j log format - cleanup custom dfs sink imports - better
+    comments/logging/Preconditions on LogicalNode, DFSEventSink, WAL
+    man, ThiftEventAdaptor, WAL Notifier, WAL manager, SeqfileEventSink
+  * FLUME-25: Fix TestGangliaSink fails intermittently
+
+  [ phunt ]
+  * FLUME-101: update plugin docs and provide a working example
+  * FLUME-82: user man issue with nc to tcp port
+  * FLUME-54: SyslogWireExtractor expects '/n' delemiter
+  * FLUME-51: Documentation doesn't mention tail source's startFromEnd
+
+  [ Jonathan Hsieh ]
+  * FLUME-117: license header missing in TestDiskFailoverBehavior
+  * FLUME-53: Heartbeat from node "hangs" when changing configuration. -
+    checkConfig in heartbeat goes to new thread, - heartbeats from node
+    happen now, but it moves blocking problem to open/close - added test
+    to verify that open/close out of heartbeat thread.
+  * FLUME-102: Update Driver.join api so that it can timeout - fixed
+    synchronization on logical node manager getters - DFO/WAL Decos use
+    new join
+  * FLUME-111: flume-site.xml.template needs updating
+  * FLUME-70: Flume shell 'nodestatus' typo
+
+  [ Dmitriy Ryaboy ]
+  * FLUME-30: Add javadoc target to build.xml
+
+  [ Jonathan Hsieh ]
+  * FLUME-1: JSP web pages do not have <title> tags set
+  * FLUME-94: Whitespace only input in shell results in warning message
+  * FLUME-42: Log filename tht permission error is occuring on
+
+  [ phunt ]
+  * FLUME-116: build tools dependencies can cause xml parser conflict
+  * FLUME-61: user guide is missing detail on external ZooKeeper use
+
+  [ Anurag Phadke ]
+  * FLUME 29: Compression using gzip before writing file to HDFS
+
+  [ Jonathan Hsieh ]
+  * FLUME-113: TailDirSource causes master to fail if directory doesn't
+    exist
+  * FLUME-124: flume 0.9.0 documentation copyedit
+
+  [ phunt ]
+  * FLUME-119: bin/flume HADOOP_HOME unset warning should check for
+    lib/hadoop*core.jar
+  * FLUME29: Userdoc related to FLUME-29 - gzip compression
+
+  [ Jonathan Hsieh ]
+  * FLUME-125: Bump docs to v0.9.1, update to version history
+  * FLUME-120: Make Insistent Decorators interruptable -- Removed locks
+    from lazyopen decorator -- races are better than deadlocks -- New
+    tests for chained inisistent stuff - RollSink: -- open cursink in
+    open and make it  a decent open status check variable -- removed
+    await in RollSink from being within rollsink lock -- roll sink now
+    interruptable;  RollSink now can exit quickly - Driver/LogicalNodes
+    -- Change state transition to be after firing stopping and error
+    events. -- fix flipped boolean reslt of Driver.join -- Added cancel
+    to driver api -- Add cancel to LogicalNode close method -- fix
+    parameters to cappedExpontentialBackoff insteantiation backwards --
+    check and prevent negative sleep values in backoffpolicies
+  * FLUME-103: Fix DFO Agent/Deco decomissioning - fixed DFO recovery
+    ordering problem in DiskFailoverDeco - updated deco to close driver
+    if no progress after a "long time" - Minor refactor of diskfailover
+    deco to make clearer. - AgentDFO tests - fix test so that we wait
+    for all started before waiting for all done - hacked test to pass,
+    need to figure out why node state is ERROR instead of IDLE - tweaks
+    to TestDiskFailoverAgent - Fixed DiskFailoverDeco to cancel when
+    timed out. - changed agent to not use let any more
+  * FLUME-104: Fix E2E Agent/Deco decomissioning - Fix WAL recovery
+    order problem - add tests to make sure closing an active source
+    happens reasonably when there is no progress - lazy drainsink open
+    on NaiveFileWALDeco - give wal tests longer time to finish - fix to
+    catch Runtime IllegalXxx exceptions generated by preconditions
+    checks. - Added test1thread test and shorted checkMs argument (how
+    often checks are done which affects exit time) - Make
+    NaiveFileWALManager state transition check more strict - checkMs
+    needs to be smaller for eventual give up to happen in a reasonable
+    amount of time - bug on setsink of NaiveFileWALDeco
+  * FLUME-128: Add license andcopyright to documentation source
+
+  [ pwendell ]
+  * Upgrading HTTP server to Jetty 6
+
+  [ David Zuelke ]
+  * FLUME-160: Event.TAG_REGEX does not match necessary special
+    characters
+
+  [ Jonathan Hsieh ]
+  * FLUME-163: tailDir fails if it contains further subdirectories
+  * FLUME-154: Scribe source.next() does not exit if it is closed
+  * FLUME-158: Recovered DFO logs cause collectorSink to exit with error
+    - Rolltag was recorded with DFO and cause a problem with down stream
+    collector roller. - Added test that checks a roller after a
+    diskFailover deco.
+  * FLUME-153: Nodes get LOST on config change - Made get reports calls
+    racy to prevent any dead locks. (correct solution would use r/w
+    locks) - Tests for deadlock on agent close - Force an eventual
+    cancel on driver when changing configurations - Percolate interrupts
+    and check interrupts to parent decorators - Parameterize node
+    timeout
+
+  [ pwendell ]
+  * FLUME-136: Porting configuration server to avro -  flume agent--
+    >master interface to Avro
+
+  [ E. Sammer ]
+  * FLUME-2: Properly detect permission problems in tail() source. -
+    Check File#canRead() while trying to create a Cursor. - Count
+    consecutive IOExceptions and log WARNings after 3 in a row. - Sleep
+    for 1 second between failures to reduce CPU spinning.
+  * FLUME-45: Fix Logical nodes can be assigned to spawned/mapped to
+    multiple physical nodes - Added checks to both ConfigManager and
+    TranslatingConfigurationManager to ensure there are no duplicate
+    logical nodes spawned. - Added a test to confirm we no longer assign
+    a single logical node to two physical nodes.
+
+  [ Jonathan Hsieh ]
+  * FLUME-176: autoE2EChain does not reconnect if connection is down and
+    comes back up - The problem was that the translations excluded the
+    mechanism to try to reconnect and as specified, would exit   the
+    logical node with error instead of retrying. - The fix is detailed
+    in the jira message. - Updated tests to check for new configuration
+    - Added significant comments about auto* translations
+
+  [ pwendell ]
+  * FLUME-139: Port control server to avro
+
+  [ Jonathan Hsieh ]
+  * FLUME-152: Fix Flume shell script does not work from bin directory
+    (via Aditya Acharya)
+  * FLUME-172: Standard Harnesses for source tests
+
+  [ E. Sammer ]
+  * FLUME-149: Support listing logical / physical mapping from shell -
+    Initial addition of getmappings shell command.   - Added an
+    implementation of getMappings() in the MasterAdminServer
+    implementation of the FlumeMasterAdminServer service.   - Added
+    support for getmappings command in FlumeShell.   - Added
+    getMappings() to thrift FlumeMasterAdminServer service. - Updated
+    thrift server test to implement the new getMappings() method. -
+    Added a test for getmappings   Note that this doesn't exactly test
+    getmappings as much as it makes sure   getmappings doesn't break
+    existing functionality. It's hard to test it   as the output is
+    what's important. - Committing regenerated thrift classes.   Not
+    really sure why thrift wants all the changes. Maybe I have a
+    different version   of thift installed than whomever previously
+    committed things? - Added headers to getmappings output (suggested
+    by phunt). - Added a 'no mappings' message when map is empty. -
+    Added javadoc to getMappings() master service method. - Added
+    argument string physicalNode to getMappings() master thrift service.
+    - Added support for an optional physicalNode argument to getmappings
+    shell command.   - Regenerate thrift classes.   - If a physicalNode
+    is passed to the master admin server, use
+    specMan.getLogicalNode() rather than iterating over the whole node
+    map.   - Ensure we return an empty map if the physicalNode doesn't
+    exist. This is to     be able to detect the difference between a
+    physical node with no mappings     and a physical node that doesn't
+    exist.   - Updated help for getmappings shell command.   - Fancied
+    up the output so 'getmappings foo' includes proper output
+    indicating that we understood what the user entered rather than
+    silently     dropping the arg.   - Similar to above, if we don't
+    know about the phyicalNode, restate its name     in the error output
+    so the user knows we tried to do what they asked rather     than
+    simply telling them there are no mappings at all which could be
+    confusing.   - Added some tests just to make sure we don't raise any
+    exceptions in corner     cases. - Removed extra whitespace. - Added
+    javadoc to to clarify physicalNode argument behavior. - Check that
+    logicalNodes returned from
+    ConfigurationManager#getLogicalNode(String) does not return null. -
+    Added checks to ensure getLogicalNodes(String) from either ZK or mem
+    store always returns a list (either empty or immutable). - Added a
+    check of every executeLine()'s return code. - Added documentation to
+    the user guide for getmappings command. - Resolved conflicts from
+    avro / thrift RPC work done.   - Added getMappings(string) to avro
+    protocol.   - Regenerated avro classes.   - Updated implementation
+    of MasterAdminServer#getMappings(String) to drop the     TException
+    raise. We're no longer thrift specific here.   - Added getMappings()
+    implementation and wrapper to deal with avro type     conversion.
+    - Updated MasterAdminServerThrift to implement a getMappings()
+    wrapper.   - Added getMappings() method to AdminRPC interface for
+    thrift and avro     protocols.   - AdminRPCAvro implements
+    getMappings() and handles the translation from avro     types to
+    standard java types.   - Implement AdminRPCThrift version of
+    getMappings().   - client#getMappings() now throws IOException
+    rather than the thrift specifc     TException in FlumeShell.   -
+    Added a stub getMappings() method to the test avro admin server. -
+    Corrected style per jshieh. - Added javadoc for getMappings().
+
+  [ vibhor ]
+  * FLUME-95: Check JVM version on service startup - currently enforces
+    JVM 1.6+ and exits with error otherwise.
+
+  [ Jonathan Hsieh ]
+  * Revert "FLUME-95: Check JVM version on service startup" This reverts
+    commit cd1528ffbf3fd7b591efaa938a2a4f7d644f0ca5.
+
+  [ Vibhor Bhatt ]
+  * FLUME-95: Check JVM version on service startup - tests pass -
+    updated vibhor's email in commit author
+  * FLUME-183: loadNode() in LogicalNode.java does not use the arguments
+    passed to it
+
+  [ E. Sammer ]
+  * FLUME-162: Incorrect documentation around auto*Sink and auto*Source
+    chains   - Updated failover chain examples to use
+    autoCollectorSource rather than collectorSource.   - Fixed the NOTE:
+    section to be consistent with the example.   - Minor grammar / typo
+    fixes.
+
+  [ patrick ]
+  * FLUME-200: Add avro.gen.dir to classpath using 'ant eclipse'
+
+  [ Jonathan Hsieh ]
+  * FLUME-132: Extend output file compression to handle other codecs -
+    generic compression code, testing, props and docs updates
+
+  [ E. Sammer ]
+  * FLUME-201: Rename spawn command to map and deprecate spawn   - Added
+    map command as a synonym of spawn.   - Updated command help to
+    indicate spawn is deprecated.   - First pass through documentation
+    updating spawn language to map.   - Corrected some trailing
+    whitespace changes I accidentally introduced     (although it's
+    already really weird).
+
+  [ Jonathan Hsieh ]
+  * FLUME-206: Flume cookbook: Recipes for source and sink testing
+  * FLUME-180: Recipe for hooking scribe to flume
+
+  [ E. Sammer ]
+  * FLUME-170: Report failure to user if user attempts to map logical
+    node to multiple physical nodes - Modified
+    ConfigManager#addLogicalNode() to return boolean rather than void.
+    We now return true when we successfully create a mapping from phy ->
+    log,   false otherwise. - Updated ConfigurationManager interface and
+    javadoc. - Updated TranslatingConfigurationManager#addLogicalNode()
+    to conform to   ConfigurationManager interface changes. Simply
+    propagate parent config   manager addLogicalNode() result up the
+    call stack. - Raise an IllegalStateException if a physical / logical
+    node mapping can not   be created.
+
+  [ Jonathan Hsieh ]
+  * FLUME-178: Recipe for hooking up syslog to flume
+
+  [ dani ]
+  * FLUME-186/FLUME-212: Thin CPP Client (flogger) + static linked
+    version. - takes system time as time stamp - allows for single tag
+    and value
+
+  [ Vibhor Bhatt ]
+  * FLUME-213: Upgrade Avro from 1.3.3 to 1.4 in Flume
+
+  [ Bruce Mitchener ]
+  * FLUME-207: Fix spelling errors in Flume User Guide
+
+  [ Jonathan Hsieh ]
+  * FLUME-211: Scripts for end-to-end testing: Basic E2E, DFO and BE
+    mode correctness tests - this tests the normal case with no errors
+    or faults injected.
+
+  [ Vibhor Bhatt ]
+  * FLUME-182: Throttling logical nodes - Throttling using
+    ChokeDecorators - Added TODOs for a future PhysicalNode level
+    throttling patch
+
+  [ Jonathan Hsieh ]
+  * FLUME-151: Commands in Flow Isolation section of docs are incorrect.
+
+  [ Vibhor Bhatt ]
+  * FLUME-138: Porting ThriftEventServer to AvroEventServer - Added
+    ability to choose the RPC mechanism in the configuration file using
+    event.rpc.type (choose THRIFT or AVRO). - Added wrapper classes
+    RpcSink/RpcSource which builds either an AvroEventSink/Source or
+    ThriftEventSink/Source based on the value of event.rpc.type. - Added
+    couple of lines in the close() method of ThriftEventSource to
+    percolate Thread.interrupt and set close=true on interrupt.
+
+  [ Jonathan Hsieh ]
+  * FLUME-155: Formalize behavior of sinks, sources and decorators
+  * FLUME-177: Recipe for hooking up Apache2 to flume
+  * FLUME-197: Enable flume to write to kerberos protected hdfs clusters
+    - Simple implementation that requires hadoop + security patches
+    (currently only builds and runs again an internal build) -
+    Documentation on how to setup principals.
+  * FLUME-214: Flume should be able to compile/run against non-kerberos
+    hdfs
+  * FLUME-234: Flume agent node not always closing deleted files - The
+    core of the problem is that the SeqFileEventSink used for logs (DFO,
+    E2E) did not close file handles it   opened.  This fixes that
+    problem and adds a test that will pass only if file handles are
+    returned.
+
+  [ Jacob Rideout ]
+  * FLUME-224: SaveConfigCommand saves to flume.master.savefile rather
+    than file specified
+
+  [ Jonathan Hsieh ]
+  * FLUME-229: Flume collector should recover from NN failures -
+    Retrying decos now handle interrupt while opening, and then after
+    open - removed synchronization from insistent append - adding more
+    logging - added interruption handling in stubborn append sink
+    (reopening sink)
+  * FLUME-222: flume one-shot node does not exit if configured node
+    becomes idle
+  * FLUME-255: Node/Master webapp's Environment table entries should be
+    sorted
+  * FLUME-75: Flume user guide does not document node state LOST
+  * FLUME-256: Node/Master's Extension web page should be easier to read
+  * FLUME-227: Web pages should show flume version / hash
+  * FLUME-89: Docs should point out that collectorSink's  default log
+    rolling time is 30 seconds and is set by flume.collector.roll.millis
+  * FLUME-241: Document the environment variables used by Flume
+
+  [ Henry Robinson ]
+  * FLUME-216: Use Avro for ZK serialisation
+  * FLUME-216: Use Avro for ZK serialisation (generated files)
+
+  [ E. Sammer ]
+  * FLUME-218: Race condition in tailsource   - Added a test to ensure
+    we get fewer than 50 dupes on 1k events with a     delay.   - Detect
+    the failure of the source / sink worker thread and fail the test
+    appropriately.   - Removed debug logging.   - Truncate the test file
+    every 100 events to try and trigger the sleep() race     condition.
+    - Commented out (but retained) assertions of event receipt. This
+    currently     fail but should eventually pass.   - Minor change to
+    the sleep time during testing.   - Minor format changes.   - Import
+    org.junit.Assert rather than junit.framework.Assert.   - Added a
+    FIXME to the note about commented out tests.   Original TailSource
+    changes by Kevin Ferguson.
+
+  [ Bruce Mitchener ]
+  * FLUME-262: Typo fixes in com.cloudera.flume.core source comments -
+    Also includes com.cloudera.flume.agent.LogiclaNode's
+
+  [ Vibhor Bhatt ]
+  * FLUME-260: Changed command.jsp to have the relative path in the
+    "Master overview" link.
+
+  [ Todd Lipcon ]
+  * FLUME-268: bin/flume should pipe pushd/popd output to /dev/null Gets
+    rid of spurious output to console running flume
+  * FLUME-267. default path in /tmp should include username
+
+  [ Jonathan Hsieh ]
+  * FLUME-266: Flume 0.9.1 update 1 release notes
+
+  [ Vibhor Bhatt ]
+  * FLUME-228: Added basic documentation of how to use the choke
+    decorators.
+
+  [ Jonathan Hsieh ]
+  * FLUME-271: Flume node outputs unhelpful error message when
+    keytab/principal is misconfigured
+  * FLUME-270: bin/flume should respect HADOOP_CONF_DIR and use core and
+    hdfs settings from there
+
+  [ Abhinay Mehta ]
+  * FLUME-263: DirWatcher does not match filename of deleted files
+    against supplied REGEX If you supply a regex to TailDirSource then
+    it also supplies the regex to DirWatcher, so that DirWatcher only
+    informs TailDirSource about the files that match the regex. Now when
+    files are deleted from a directory, DirWatcher will match the file's
+    name against the supplied regex and only a match occurs it will fire
+    an event to TailDirSource about the deleted file.
+
+  [ Bruce Mitchener ]
+  * FLUME-274: Move RpcSink and RpcSource to handlers.rpc and out of
+    handlers.thrift - these soources and sinks are generic RPC handlers
+    now.
+  * FLUME-275: README has bad links - Fixed and added a couple of
+    additional links.
+  * FLUME-276: PollingSource was copied from another, but text was not
+    updated - updated comments
+
+  [ Jonathan Hsieh ]
+  * FIX: Remove auto gen avro files - Avro compiler is built into avro
+    lib, and is not an external dependency.  This means we don't need to
+    check in the auto-gen files.
+
+  [ Vibhor Bhatt ]
+  * FLUME-137: Port ReportServer to Avro
+  * FLUME-230: ChokeManager should work with ZK based configuration
+    store - Added Zookeeper backend store for the ChokeMap.
+
+  [ Dani Rayan ]
+  * FLUME-202: Thrift 0.4.0 upgrade after FLUME-182 patch update -
+    Adding libthrift-0.4.0.jar
+
+  [ Jonathan Hsieh ]
+  * FLUME-202: Thrift 0.4.0 upgrade (auto gen files)
+
+  [ E. Sammer ]
+  * FLUME-272: autoCollectorSource is missing from user guide
+
+  [ Jonathan Hsieh ]
+  * FLUME-290: Add RPC properties to flume-conf.xml file
+
+  [ Bruce Mitchener ]
+  * FLUME-284: Use the correct value for max event body size.
+
+  [ Aaron Kimball ]
+  * FLUME-281: Allow additional means of specifying Flume paths.
+
+  [ E. Sammer ]
+  * FLUME-293: All Flume tests should use JUnit 4 APIs and conventions.
+
+  [ Jonathan Hsieh ]
+  * FIX: updates to .gitignore
+  * FLUME-264: Exec high CPU usage
+  * FLUME-159: fix console/stdin source's next call does not exit when
+    source is closed - moved testStdinSource - old stdinSink is known to
+    fail - renamed old console sink to stdin - replaced console source
+    with jline-console
+  * FLUME-15: Flume shell error messages are not useful (thrift)
+  * FLUME-15: Flume shell error messages are not useful (thrift autogen)
+  * FLUME-15: Flume shell error messages are not useful (avro rpc)
+  * FLUME-133: Add support for Avro Native output files
+
+  [ Bruce Mitchener ]
+  * FLUME-301: Upgrade to the latest SLF4J release
+  * FLUME-303: Remove usage of ISO8601DateFormat from Log4J.
+  * FLUME-304: Fix class names being passed to getLogger.
+  * FLUME-302: Log version and environment information at INFO level
+    rather than allowing caller to specify. Remove logging of this
+    information from FlumeShell.
+
+  [ Jonathan Hsieh ]
+  * FLUME-192: BatchingDecorator pegs a cpu even if it remains open and
+    no new events are added
+  * FLUME-198: Flume should generate docs in a docs directory
+  * FLUME-190: add index.html to flume docs directory
+
+  [ Bruce Mitchener ]
+  * FLUME-283: Begin switching from directly using the Log4J API to
+    using the SLF4J API. This also changes an instance of using Apache
+    Commons Logging to SLF4J, corrects modifier order, makes all SLF4J
+    loggers be static and final, and removes usages of .getName() on the
+    class passed to the SLF4J LoggerFactory.
+  * FLUME-311: Fix documentation typos and incorrect capitalization.
+  * FLUME-317: Adjust remaining usages of Log4J in src/java to use SLF4J
+    API.
+
+  [ Jonathan Hsieh ]
+  * FLUME-252: Update tail to get rid of races and truncation problems -
+    This version uses Java NIO Channels and ByteBuffers - Fiex FLUME-205
+    (tail breaks UTF8) by using ByteBuffers - Fixes FLUME-232
+    (tailsource adds newlines) by using ts own readline implementation -
+    Fixes FLUME-248 (Tail source does not close files, leaks file
+    handles in normal operation) - Usually passes tests from FLUME-218
+    (race condition in tail source) comments - Adds documentation to be
+    more precise about tail's semantics. - Added release notes about how
+    this is not a complete fix
+  * FLUME-258: TailDir should include source file name metadata for sink
+  * FLUME-286: DFO mode does not detect network failure
+  * FLUME-254: Extra \x00 characters are prepended when using exec -
+    specific example:  exec("tail -F /path/to/file") - made nio calls
+    work with larger groups of bytes - change to use pipe to wrap
+    inputstream to make channel nonblocking
+  * FLUME-289: Flume man pages (groff)
+  * FLUME-333: 'ant tar' did not include LICENSE, RELEASENOTES, README,
+    and NOTICE
+  * FLUME-335: Include asciidoc artifacts in repo and only build docs
+    when necessary - update build.xml so that ascii doc docs are only
+    built if necessary.
+  * Bump to v0.9.2
+  * Regenerate docs for 0.9.2
+  * FLUME-345/FLUME-307: asciidoc build with no GPL js / use build
+    autogenerate build version strings - FOR 0.9.2 only, does not
+    include Developer Guide fixes! - remove unused master-empty.png -
+    update build.xml to use non GPL docs build chain - Updates to auto
+    gen version numbers, dates - add web stuff - add autogenerate index
+    page
+  * FLUME-345: asciidoc build with no GPL. (autogen) - Backported from
+    trunk to remove Developer Guide portions
+
+  [ E. Sammer ]
+  * FLUME-348: ThriftEventAdaptor should return null when a nonexistent
+    attribute is fetched
+
+  [ phunt ]
+  * Added changelog for release 0.9.2
+
+  [ Bruce Mitchener ]
+  * FLUME-362: Fix various typos in man pages.
+
+  [ Jonathan Hsieh ]
+  * Updated changelog for 0.9.2 release
+
+  [ dsmith ]
+  * Added the antlr jar.
+  * Revert "Added the antlr jar." This reverts commit
+    a97860e049832bc2c4b089dfcc96ff4dc2c42cd1.
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Mon, 27 Dec 2010 19:32:39 +0000
+
 flume (0.9.1+1-0sg20) UNRELEASED; urgency=low
 
   * UNRELEASED
