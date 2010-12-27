@@ -1,3 +1,11 @@
+flume (0.9.2+1-0sg20) cloudera; urgency=low
+
+  Commit 92ab5c55c0486d736d0d8283f3087dc9d0637ae7:
+    CLOUDERA-BUILD. Adding basic cloudera build infrastructure support.
+
+  Author: Chad Metcalf <chad@cloudera.com>  Fri, 25 Jun 2010 23:25:56 -0700
+ -- phunt <phunt@cloudera.com>  Mon, 27 Dec 2010 12:03:14 -0700
+
 flume (0.9.1+1-1) cloudera; urgency=low
 
   Commit 92ab5c55c0486d736d0d8283f3087dc9d0637ae7:
