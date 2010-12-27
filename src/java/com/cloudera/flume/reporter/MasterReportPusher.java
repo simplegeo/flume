@@ -24,11 +24,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.agent.FlumeNode;
 import com.cloudera.flume.agent.LogicalNode;
 import com.cloudera.flume.agent.MasterRPC;
+import com.cloudera.flume.agent.MultiMasterRPC;
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.cloudera.util.Clock;
 
@@ -38,7 +40,7 @@ import com.cloudera.util.Clock;
  */
 public class MasterReportPusher {
 
-  static final Logger LOG = Logger.getLogger(MasterReportPusher.class);
+  static final Logger LOG = LoggerFactory.getLogger(MasterReportPusher.class);
 
   final FlumeConfiguration cfg;
   final ReportManager rptMan;
@@ -53,10 +55,10 @@ public class MasterReportPusher {
    * masterRPC.
    */
   public MasterReportPusher(FlumeConfiguration cfg, ReportManager rptMan,
-      MasterRPC masterRPC) {
+      MasterRPC rpcMan) {
     this.cfg = cfg;
     this.rptMan = rptMan;
-    this.masterRPC = masterRPC;
+    this.masterRPC = rpcMan;
   }
 
   /**

@@ -24,7 +24,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.thrift.transport.TTransportException;
 import org.junit.After;
 import org.junit.Before;
@@ -32,7 +33,7 @@ import org.junit.Test;
 
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.cloudera.flume.conf.FlumeSpecException;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.master.StatusManager.NodeState;
 import com.cloudera.flume.master.availability.ConsistentHashFailoverChainManager;
 import com.cloudera.flume.master.availability.FailoverChainManager;
@@ -49,7 +50,7 @@ import com.cloudera.util.NetUtils;
  * 
  */
 public class TestMasterAutoUpdatesE2E {
-  final public static Logger LOG = Logger
+  public static final Logger LOG = LoggerFactory
       .getLogger(TestMasterAutoUpdatesE2E.class);
 
   // /////////

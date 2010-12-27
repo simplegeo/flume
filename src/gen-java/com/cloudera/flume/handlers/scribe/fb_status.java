@@ -21,12 +21,6 @@ public enum fb_status implements TEnum {
   STOPPED(4),
   WARNING(5);
 
-  private static final Map<Integer, fb_status> BY_VALUE = new HashMap<Integer,fb_status>() {{
-    for(fb_status val : fb_status.values()) {
-      put(val.getValue(), val);
-    }
-  }};
-
   private final int value;
 
   private fb_status(int value) {
@@ -45,6 +39,21 @@ public enum fb_status implements TEnum {
    * @return null if the value is not found.
    */
   public static fb_status findByValue(int value) { 
-    return BY_VALUE.get(value);
+    switch (value) {
+      case 0:
+        return DEAD;
+      case 1:
+        return STARTING;
+      case 2:
+        return ALIVE;
+      case 3:
+        return STOPPING;
+      case 4:
+        return STOPPED;
+      case 5:
+        return WARNING;
+      default:
+        return null;
+    }
   }
 }

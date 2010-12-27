@@ -25,8 +25,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.Map.Entry;
 
 import jline.Completor;
 import jline.ConsoleReader;
@@ -38,27 +38,25 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.VersionInfo;
-import com.cloudera.flume.agent.FlumeNode;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.conf.FlumeConfiguration;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
-import com.cloudera.flume.conf.thrift.FlumeMasterAdminServer.Client;
-import com.cloudera.flume.conf.thrift.FlumeMasterCommand;
-import com.cloudera.flume.conf.thrift.FlumeNodeState;
-import com.cloudera.flume.conf.thrift.FlumeNodeStatus;
 import com.cloudera.flume.master.Command;
-import com.cloudera.flume.reporter.server.FlumeReport;
-import com.cloudera.flume.reporter.server.FlumeReportServer;
+import com.cloudera.flume.master.CommandStatus;
+import com.cloudera.flume.master.StatusManager;
+import com.cloudera.flume.reporter.server.thrift.ThriftFlumeReport;
+import com.cloudera.flume.reporter.server.thrift.ThriftFlumeReportServer;
 import com.cloudera.flume.shell.CommandBuilder;
+import com.cloudera.util.CheckJavaVersion;
 
 /**
  * The FlumeShell is a command-line-interface for a Flume master.
@@ -66,7 +64,7 @@ import com.cloudera.flume.shell.CommandBuilder;
  * TODO (jon) move to com.cloudera.flume.shell
  */
 public class FlumeShell {
-  private static final Logger LOG = Logger.getLogger(FlumeShell.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FlumeShell.class);
   // Sort on command name
   protected static final Map<String, CommandDescription> commandMap = new TreeMap<String, CommandDescription>();
   protected boolean printPrompt = true;
@@ -112,6 +110,8 @@ public class FlumeShell {
     commandMap.put("getnodestatus", new CommandDescription("", true, 0));
     commandMap.put("quit", new CommandDescription("", false, 0));
     commandMap.put("getconfigs", new CommandDescription("", true, 0));
+    commandMap.put("getmappings", new CommandDescription("[physical node]",
+        true, 0));
     commandMap.put("source", new CommandDescription(
         "load a file and execute flume shell commands in it", false, 1));
 
@@ -138,14 +138,21 @@ public class FlumeShell {
     commandMap.put("exec refreshAll", new CommandDescription("", true, 1));
     commandMap.put("exec noop", new CommandDescription(
         "[delaymillis (no arg means no wait)]", true, 1));
-    commandMap.put("exec spawn", new CommandDescription(
+    commandMap.put("exec spawn",
+        new CommandDescription(
+            "physicalnode logicalnode (synonym for exec map. deprecated.)",
+            true, 3));
+    commandMap.put("exec map", new CommandDescription(
         "physicalnode logicalnode", true, 3));
     commandMap.put("exec decommission", new CommandDescription("logicalnode",
         true, 2));
     commandMap.put("exec unmap", new CommandDescription(
         "physicalnode logicalnode", true, 3));
     commandMap.put("exec unmapAll", new CommandDescription("", true, 1));
-
+    // TODO(Vibhor): Change this when we give the user ability to change the
+    // physicalNode throttling limit.
+    commandMap.put("exec setChokeLimit", new CommandDescription(
+        "physicalnode chokeid limit", true, 3));
     // These actually work well and autocomplete the way we want!
     commandMap.put("submit config", new CommandDescription(
         "node 'source' 'sink'", true, 1));
@@ -155,6 +162,9 @@ public class FlumeShell {
     commandMap.put("submit refreshAll", new CommandDescription("", true, 1));
     commandMap.put("submit noop", new CommandDescription("", true, 1));
     commandMap.put("submit spawn", new CommandDescription(
+        "physicalnode logicalnode (synonym for submit map. deprecated.)", true,
+        3));
+    commandMap.put("submit map", new CommandDescription(
         "physicalnode logicalnode", true, 3));
     commandMap.put("submit decommission", new CommandDescription("logicalnode",
         true, 2));
@@ -162,11 +172,10 @@ public class FlumeShell {
         "physicalnode logicalnode", true, 3));
     commandMap.put("submit unmapAll", new CommandDescription("", true, 1));
     commandMap.put("getreports", new CommandDescription("", true, 0));
-
   }
 
-  protected Client client = null;
-  protected FlumeReportServer.Client reportClient = null;
+  protected AdminRPC client = null;
+  protected ThriftFlumeReportServer.Client reportClient = null;
   public static final long CMD_WAIT_TIME_MS = 10 * 1000;
 
   protected static class FlumeCompletor implements Completor {
@@ -245,7 +254,7 @@ public class FlumeShell {
    * This waits for a command cmdid for at most maxmillis to reach SUCCESS or
    * FAIL state. Returns -1 if timed out, returns 0 on sucess.
    */
-  protected long pollWait(long cmdid, long maxmillis) throws TException,
+  protected long pollWait(long cmdid, long maxmillis) throws IOException,
       InterruptedException {
 
     if (!client.hasCmdId(cmdid)) {
@@ -257,8 +266,9 @@ public class FlumeShell {
     while (System.currentTimeMillis() - start < maxmillis) {
 
       if (client.isFailure(cmdid)) {
-        System.out.println("Command failed");
-        // TODO (jon) get the commands history message and display it.
+        System.err.println("Command failed");
+        CommandStatus stat = client.getCommandStatus(cmdid);
+        System.err.println(stat.getMessage());
         return -1;
       }
       if (client.isSuccess(cmdid)) {
@@ -269,19 +279,20 @@ public class FlumeShell {
       }
       Thread.sleep(POLL_DELAY_MS);
     }
-    System.out.println("Command timed out");
+    System.err.println("Command timed out");
     return -1;
 
   }
 
-  boolean isDone(FlumeNodeStatus status) {
-    FlumeNodeState state = status.getState();
+  boolean isDone(StatusManager.NodeStatus status) {
+    StatusManager.NodeState state = status.state;
     switch (state) {
     case IDLE:
     case ERROR:
     case LOST:
+    case DECOMMISSIONED:
       // if at version 0, do not return true for isDone. (nothing has happened!)
-      return status.getVersion() != 0;
+      return status.version != 0;
     case ACTIVE:
     case CONFIGURING:
     case HELLO:
@@ -298,10 +309,10 @@ public class FlumeShell {
     long start = System.currentTimeMillis();
 
     while (System.currentTimeMillis() - start < maxmillis) {
-      Map<String, FlumeNodeStatus> nodemap;
+      Map<String, StatusManager.NodeStatus> nodemap;
       try {
         nodemap = client.getNodeStatuses();
-      } catch (TException e) {
+      } catch (IOException e) {
         LOG.debug("Disconnected!", e);
         disconnect();
         return -1;
@@ -309,7 +320,7 @@ public class FlumeShell {
 
       boolean busy = false;
       for (String n : nodes) {
-        FlumeNodeStatus stat = nodemap.get(n);
+        StatusManager.NodeStatus stat = nodemap.get(n);
         if (stat == null) {
           busy = true;
           break;
@@ -333,8 +344,8 @@ public class FlumeShell {
     return -1;
   }
 
-  boolean isActive(FlumeNodeStatus status) {
-    FlumeNodeState state = status.getState();
+  boolean isActive(StatusManager.NodeStatus status) {
+    StatusManager.NodeState state = status.state;
     switch (state) {
     case ACTIVE:
     case CONFIGURING:
@@ -360,10 +371,10 @@ public class FlumeShell {
     long start = System.currentTimeMillis();
 
     while (System.currentTimeMillis() - start < maxmillis) {
-      Map<String, FlumeNodeStatus> nodemap;
+      Map<String, StatusManager.NodeStatus> nodemap;
       try {
         nodemap = client.getNodeStatuses();
-      } catch (TException e) {
+      } catch (IOException e) {
         LOG.debug("Disconnected! " + e.getMessage(), e);
         System.out.println("Disconnected! " + e.getMessage());
         disconnect();
@@ -373,7 +384,7 @@ public class FlumeShell {
       // this isn't completely reliable yet -- it should be used with care.
       boolean ready = true;
       for (String n : nodes) {
-        FlumeNodeStatus stat = nodemap.get(n);
+        StatusManager.NodeStatus stat = nodemap.get(n);
         if (stat == null) {
           ready = false;
           break;
@@ -522,17 +533,17 @@ public class FlumeShell {
     }
 
     if (cmd.getCommand().equals("getnodestatus")) {
-      Map<String, FlumeNodeStatus> nodemap;
+      Map<String, StatusManager.NodeStatus> nodemap;
       try {
         nodemap = client.getNodeStatuses();
-      } catch (TException e) {
+      } catch (IOException e) {
         LOG.debug("Disconnected!", e);
         disconnect();
         return -1;
       }
       System.out.println("Master knows about " + nodemap.size() + " nodes");
 
-      for (Entry<String, FlumeNodeStatus> e : nodemap.entrySet()) {
+      for (Entry<String, StatusManager.NodeStatus> e : nodemap.entrySet()) {
         System.out.println("\t" + e.getKey() + " --> "
             + e.getValue().state.toString());
       }
@@ -540,7 +551,7 @@ public class FlumeShell {
     }
 
     if (cmd.getCommand().equals("getreports")) {
-      Map<String, FlumeReport> reports;
+      Map<String, ThriftFlumeReport> reports;
       try {
         reports = reportClient.getAllReports();
       } catch (TException e) {
@@ -550,10 +561,48 @@ public class FlumeShell {
       }
       System.out.println("Master knows about " + reports.size() + " reports");
 
-      for (Entry<String, FlumeReport> e : reports.entrySet()) {
+      for (Entry<String, ThriftFlumeReport> e : reports.entrySet()) {
         System.out.println("\t" + e.getKey() + " --> "
             + e.getValue().toString());
       }
+      return 0;
+    }
+
+    if (cmd.getCommand().equals("getmappings")) {
+      Map<String, List<String>> mappings;
+      String physicalNode = null;
+      String forPhysicalMessage = "";
+
+      if (cmd.args.size() > 0) {
+        physicalNode = cmd.args.get(0);
+        forPhysicalMessage = " for physical node " + physicalNode;
+      }
+
+      try {
+        mappings = client.getMappings(physicalNode);
+      } catch (IOException e) {
+        LOG.debug("Disconnected!", e);
+        disconnect();
+        return -1;
+      }
+
+      String header = String.format("%s\n\n%-30s --> %s\n",
+          "Master has the following mappings" + forPhysicalMessage,
+          "Physical Node", "Logical Node(s)");
+
+      if (mappings.size() > 0) {
+        System.out.println(header);
+
+        for (Entry<String, List<String>> entry : mappings.entrySet()) {
+          System.out.println(String.format("%-30s --> %s", entry.getKey(),
+              entry.getValue()));
+        }
+      } else {
+        System.out.println("No physical / logic node mappings"
+            + forPhysicalMessage
+            + ". Use spawn to map a logical node to a physical node.");
+      }
+
       return 0;
     }
 
@@ -601,7 +650,12 @@ public class FlumeShell {
           int aPort = parseAdminPort(parts.length >= 2 ? parts[1] : null);
           // determine the report server port
           int rPort = parseReportPort(parts.length >= 3 ? parts[2] : null);
-          connect(parts[0], aPort, rPort);
+          try {
+            connect(parts[0], aPort, rPort);
+          } catch (IOException e) {
+            System.out.println("Connection to " + s + " failed");
+            LOG.debug("Connection to " + s + " failed", e);
+          }
           return 0;
         } catch (TTransportException t) {
           System.out.println("Connection to " + s + " failed");
@@ -622,15 +676,14 @@ public class FlumeShell {
         if (cmd.getArgs().size() > 1) {
           args = cmd.getArgs().subList(1, cmd.getArgs().size());
         }
-        FlumeMasterCommand fcmd = new FlumeMasterCommand(cmd.getArgs().get(0),
-            args);
-        long cmdid = client.submit(fcmd);
+        long cmdid = client.submit(new Command(cmd.getArgs().get(0),
+            (String[]) args.toArray(new String[args.size()])));
         lastCmdId = cmdid;
         // Do not change this, other programs will likely depend on this.
         System.out.println("[id: " + cmdid + "] Submitted command : "
             + cmd.getArgs().get(0));
         return cmdid;
-      } catch (TException e) {
+      } catch (IOException e) {
         disconnect();
         LOG.debug("config failed due to transport error", e);
         return -1;
@@ -667,7 +720,7 @@ public class FlumeShell {
 
       try {
         return pollWait(cmdid, millis);
-      } catch (TException e) {
+      } catch (IOException e) {
         disconnect();
         LOG.debug("config failed due to transport error", e);
         return -1;
@@ -693,15 +746,14 @@ public class FlumeShell {
         if (cmd.getArgs().size() > 1) {
           args = cmd.getArgs().subList(1, cmd.getArgs().size());
         }
-        FlumeMasterCommand fcmd = new FlumeMasterCommand(cmd.getArgs().get(0),
-            args);
-        long cmdid = client.submit(fcmd);
+        long cmdid = client.submit(new Command(cmd.getArgs().get(0),
+            (String[]) args.toArray(new String[args.size()])));
         System.out.println("[id: " + cmdid + "] Execing command : "
             + cmd.getArgs().get(0));
         lastCmdId = cmdid;
 
         return pollWait(cmdid, CMD_WAIT_TIME_MS);
-      } catch (TException e) {
+      } catch (IOException e) {
         disconnect();
         LOG.debug("config failed due to transport error", e);
         return -1;
@@ -744,7 +796,7 @@ public class FlumeShell {
               e.getValue().sinkConfig);
           System.out.println(line);
         }
-      } catch (TException e) {
+      } catch (IOException e) {
         disconnect();
         LOG.error("getconfigs failed due to transport error");
         return -1;
@@ -781,7 +833,7 @@ public class FlumeShell {
       ShellCommand cmd = new ShellCommand(line);
       return execCommand(cmd);
     } catch (Exception e) {
-      System.err.println("Failed to run command '" + line + "' due to "
+      System.out.println("Failed to run command '" + line + "' due to "
           + e.getMessage());
       LOG.error("Failed to run command '" + line + "'");
       return -1;
@@ -798,29 +850,29 @@ public class FlumeShell {
             : "(disconnected)") + "] ";
   }
 
-  private Client connectClient(String host, int port)
-      throws TTransportException {
+  private ThriftFlumeReportServer.Client connectReportClient(String host,
+      int port) throws TTransportException {
     TTransport masterTransport = new TSocket(host, port);
     TProtocol protocol = new TBinaryProtocol(masterTransport);
     masterTransport.open();
-    return new Client(protocol);
+    return new ThriftFlumeReportServer.Client(protocol);
   }
 
-  private FlumeReportServer.Client connectReportClient(String host, int port)
-      throws TTransportException {
-    TTransport masterTransport = new TSocket(host, port);
-    TProtocol protocol = new TBinaryProtocol(masterTransport);
-    masterTransport.open();
-    return new FlumeReportServer.Client(protocol);
-  }
-
-  protected void connect(String host, int aPort, int rPort)
-      throws TTransportException {
+  protected void connect(String host, int aPort, int rPort) throws IOException,
+      TTransportException {
     connected = false;
     System.out.println("Connecting to Flume master " + host + ":" + aPort + ":"
         + rPort + "...");
 
-    client = connectClient(host, aPort);
+    String rpcType = FlumeConfiguration.get().getMasterHeartbeatRPC();
+    if (FlumeConfiguration.RPC_TYPE_AVRO.equals(rpcType)) {
+      client = new AdminRPCAvro(host, aPort);
+    } else if (FlumeConfiguration.RPC_TYPE_THRIFT.equals(rpcType)) {
+      client = new AdminRPCThrift(host, aPort);
+    } else {
+      throw new IOException("No valid RPC framework specified in config");
+    }
+
     // use default for now
     reportClient = connectReportClient(host, rPort);
 
@@ -850,9 +902,12 @@ public class FlumeShell {
    */
   public static void main(String[] args) throws IOException,
       TTransportException {
-    FlumeNode.logVersion(LOG, Level.DEBUG);
-    FlumeNode.logEnvironment(LOG, Level.DEBUG);
-
+    // Make sure the Java version is not older than 1.6
+    if (!CheckJavaVersion.isVersionOk()) {
+      LOG
+          .error("Exiting because of an old Java version or Java version in bad format");
+      System.exit(-1);
+    }
     CommandLine cmd = null;
     Options options = new Options();
     options.addOption("?", false, "Command line usage");

@@ -42,7 +42,7 @@ enum FlumeNodeState {
   DECOMMISSIONED=6
 }
 
-struct FlumeConfigData {
+struct ThriftFlumeConfigData {
   1: Timestamp timestamp,
   2: string sourceConfig,
   3: string sinkConfig,
@@ -54,15 +54,18 @@ struct FlumeConfigData {
 // TODO (jon) right now sourceId is a name selected by client, 
 // likely to be some naming consistency issues.
 
-service FlumeClientServer {
+service ThriftFlumeClientServer {
   // This will get removed from the service
   // returns true if the sourceId's configuration has changed												 
   bool heartbeat(1:string logicalNode, 4:string physicalNode, 5:string host, 2:FlumeNodeState s, 3:i64 timestamp),
   
   // This gets the configuration from the specified sourceId/name 
-  FlumeConfigData getConfig(1:string sourceId),
+  ThriftFlumeConfigData getConfig(1:string sourceId),
 
   list<string> getLogicalNodes(1: string physNode),
+  
+  //this returns a map from ChokeIds to their respective limits for the given physicalnode
+  map<string, i32> getChokeMap(1: string physNode),
   
   // This marks a batch as complete
   void acknowledge(1:string ackid), 
@@ -71,6 +74,6 @@ service FlumeClientServer {
   bool checkAck(1:string ackid),
 
   // For nodes to send reports to the master
-  void putReports(1:map<string, flumereportserver.FlumeReport> reports)
+  void putReports(1:map<string, flumereportserver.ThriftFlumeReport> reports)
 }
 

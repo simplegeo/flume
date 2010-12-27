@@ -43,6 +43,13 @@ function usage {
 }
 
 CMDPATH=`dirname $0`
+
+# This is to make CMDPATH correct if you go to the bin directory
+# and run ./flume <command>.
+pushd $CMDPATH >/dev/null
+CMDPATH=`pwd`
+popd >/dev/null
+
 # name of path
 CMDPATH=`dirname $CMDPATH`
 
@@ -78,8 +85,6 @@ function append_jars_onto_classpath() {
 
 # name of script
 BINPATH=`dirname $0`
-# name of path
-CMDPATH=`dirname $BINPATH`
 
 if [ -f "${BINPATH}/flume-env.sh" ]; then
     source "$BINPATH/flume-env.sh"
@@ -114,6 +119,17 @@ if [ "$cygwin" == false ] ; then
   if [ -n "$FLUME_CLASSPATH" ]; then
       CLASSPATH+=":${FLUME_CLASSPATH}"
   fi
+
+  # put hadoop conf dir in classpath to include Hadoop
+  # core-site.xml/hdfs-site.xml
+  if [ -n "${HADOOP_CONF_DIR}" ]; then
+      CLASSPATH+=":${HADOOP_CONF_DIR}" 
+  elif [ -n "${HADOOP_HOME}" ] ; then
+      CLASSPATH+=":${HADOOP_HOME}/conf"
+  elif [ -e "/usr/lib/hadoop/conf" ] ; then
+      # if neither is present see if the CDH dir exists
+      CLASSPATH+=":/usr/lib/hadoop-0.20/conf";
+  fi  # otherwise give up
 
   # try to load the hadoop core jars
   HADOOP_CORE_FOUND=false
