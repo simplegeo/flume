@@ -24,8 +24,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 
-import org.apache.log4j.Logger;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeBuilder;
@@ -34,7 +35,7 @@ import com.cloudera.flume.conf.SinkFactoryImpl;
 import com.cloudera.flume.conf.SourceFactoryImpl;
 import com.cloudera.flume.conf.SinkFactory.SinkBuilder;
 import com.cloudera.flume.conf.SourceFactory.SourceBuilder;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.core.Event;
 import com.cloudera.flume.core.EventSink;
 import com.cloudera.flume.core.EventSource;
@@ -43,7 +44,7 @@ import com.cloudera.util.Clock;
 
 public class TestLogicalNode {
 
-  final public static Logger LOG = Logger.getLogger(TestLogicalNode.class);
+  public static final Logger LOG = LoggerFactory.getLogger(TestLogicalNode.class);
 
   /**
    * Test that checkConfig has the correct versioning behaviour

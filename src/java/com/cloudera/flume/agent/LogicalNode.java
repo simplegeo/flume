@@ -24,13 +24,14 @@ import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeBuilder;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.cloudera.flume.conf.FlumeSpecException;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
 import com.cloudera.flume.core.Driver;
 import com.cloudera.flume.core.DriverListener;
 import com.cloudera.flume.core.EventSink;
@@ -75,7 +76,7 @@ import com.cloudera.util.NetUtils;
  * look at this code may be necessary.
  */
 public class LogicalNode implements Reportable {
-  final static Logger LOG = Logger.getLogger(LogicalNode.class.getName());
+  static final Logger LOG = LoggerFactory.getLogger(LogicalNode.class);
 
   private FlumeConfigData lastGoodCfg;
   private Driver driver; // the connector that pumps data from src to snk
@@ -158,14 +159,14 @@ public class LogicalNode implements Reportable {
     newSrc = new LazyOpenSource<EventSource>(newSrc);
 
     openSourceSink(newSrc, newSnk);
-    loadNode(newSrc, newSnk);
+    loadNode();
   }
 
   /**
    * This stops any existing connection (source=>sink pumper), and then creates
    * a new one with the specified *already opened* source and sink arguments.
    */
-  private void loadNode(EventSource newSrc, EventSink newSnk)
+  private void loadNode()
       throws IOException {
 
     if (driver != null) {
@@ -204,7 +205,7 @@ public class LogicalNode implements Reportable {
         }
 
         nodeMsg = "Error: Connector on " + nodeName + " closed " + conn;
-        LOG.error("Driver on " + nodeName + " closed " + conn + " becaues of "
+        LOG.error("Driver on " + nodeName + " closed " + conn + " because of "
             + ex.getMessage(), ex);
 
         state.state = NodeState.ERROR;

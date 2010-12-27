@@ -24,7 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.agent.AgentFailChainSink;
 import com.cloudera.flume.agent.AgentSink;
@@ -38,6 +39,7 @@ import com.cloudera.flume.core.MaskDecorator;
 import com.cloudera.flume.core.SelectDecorator;
 import com.cloudera.flume.core.extractors.RegexExtractor;
 import com.cloudera.flume.core.extractors.SplitExtractor;
+import com.cloudera.flume.handlers.avro.AvroEventSink;
 import com.cloudera.flume.handlers.batch.BatchingDecorator;
 import com.cloudera.flume.handlers.batch.GunzipDecorator;
 import com.cloudera.flume.handlers.batch.GzipDecorator;
@@ -46,6 +48,7 @@ import com.cloudera.flume.handlers.debug.BenchmarkInjectDecorator;
 import com.cloudera.flume.handlers.debug.BenchmarkReportDecorator;
 import com.cloudera.flume.handlers.debug.BloomCheckDecorator;
 import com.cloudera.flume.handlers.debug.BloomGeneratorDeco;
+import com.cloudera.flume.handlers.debug.ChokeDecorator;
 import com.cloudera.flume.handlers.debug.ConsoleEventSink;
 import com.cloudera.flume.handlers.debug.DelayDecorator;
 import com.cloudera.flume.handlers.debug.FlakeyEventSink;
@@ -67,6 +70,7 @@ import com.cloudera.flume.handlers.hdfs.DFSEventSink;
 import com.cloudera.flume.handlers.hdfs.EscapedCustomDfsSink;
 import com.cloudera.flume.handlers.hdfs.SeqfileEventSink;
 import com.cloudera.flume.handlers.irc.IrcSink;
+import com.cloudera.flume.handlers.rpc.RpcSink;
 import com.cloudera.flume.handlers.syslog.SyslogTcpSink;
 import com.cloudera.flume.handlers.thrift.ThriftAckedEventSink;
 import com.cloudera.flume.handlers.thrift.ThriftEventSink;
@@ -88,7 +92,7 @@ import com.cloudera.util.Pair;
  * recompile to add new types.
  */
 public class SinkFactoryImpl extends SinkFactory {
-  static final Logger LOG = Logger.getLogger(SinkFactoryImpl.class);
+  static final Logger LOG = LoggerFactory.getLogger(SinkFactoryImpl.class);
 
   // The actual types are <String, SinkBuilder>
   static Object[][] sinkList = {
@@ -125,10 +129,11 @@ public class SinkFactoryImpl extends SinkFactory {
       { "dfs", DFSEventSink.builder() }, // escapes
       { "customdfs", CustomDfsSink.builder() }, // does not escape
       { "escapedCustomDfs", EscapedCustomDfsSink.builder() }, // escapes
-      { "rpcSink", ThriftEventSink.builder() },
+      { "rpcSink", RpcSink.builder() }, //creates AvroEventSink or ThriftEventSink
       { "syslogTcp", SyslogTcpSink.builder() },
       { "irc", IrcSink.builder() },
-
+      { "thriftSink", ThriftEventSink.builder() },
+      { "avroSink", AvroEventSink.builder() },
       // advanced
       { "failChain", FailoverChainSink.builder() }, // @deprecated
 
@@ -143,7 +148,6 @@ public class SinkFactoryImpl extends SinkFactory {
       { "regexhistospec", RegexGroupHistogramSink.builder() },
 
       // deprecated
-      { "thrift", ThriftEventSink.builder() },
       { "tsink", ThriftEventSink.builder() },
       { "tacksink", ThriftAckedEventSink.builder() },
       { "trawsink", ThriftRawEventSink.builder() }, };
@@ -198,7 +202,10 @@ public class SinkFactoryImpl extends SinkFactory {
       { "bloomGen", BloomGeneratorDeco.builder() },
       { "bloomCheck", BloomCheckDecorator.builder() },
       { "mult", MultiplierDecorator.builder() },
-      { "delay", DelayDecorator.builder() }, };
+      { "delay", DelayDecorator.builder() }, 
+      { "choke", ChokeDecorator.builder() },
+  
+  };
 
   Map<String, SinkBuilder> sinks = new HashMap<String, SinkBuilder>();
   Map<String, SinkDecoBuilder> decos = new HashMap<String, SinkDecoBuilder>();

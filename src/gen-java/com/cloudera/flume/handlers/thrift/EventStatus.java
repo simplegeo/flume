@@ -15,12 +15,6 @@ public enum EventStatus implements TEnum {
   COMMITED(1),
   ERR(2);
 
-  private static final Map<Integer, EventStatus> BY_VALUE = new HashMap<Integer,EventStatus>() {{
-    for(EventStatus val : EventStatus.values()) {
-      put(val.getValue(), val);
-    }
-  }};
-
   private final int value;
 
   private EventStatus(int value) {
@@ -39,6 +33,15 @@ public enum EventStatus implements TEnum {
    * @return null if the value is not found.
    */
   public static EventStatus findByValue(int value) { 
-    return BY_VALUE.get(value);
+    switch (value) {
+      case 0:
+        return ACK;
+      case 1:
+        return COMMITED;
+      case 2:
+        return ERR;
+      default:
+        return null;
+    }
   }
 }
