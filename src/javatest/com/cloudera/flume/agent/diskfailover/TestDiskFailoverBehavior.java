@@ -25,17 +25,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.agent.LogicalNode;
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeSpecException;
 import com.cloudera.flume.conf.LogicalNodeContext;
 import com.cloudera.flume.conf.ReportTestingContext;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.master.StatusManager.NodeState;
 import com.cloudera.flume.reporter.ReportEvent;
 import com.cloudera.flume.reporter.ReportManager;
@@ -52,7 +53,7 @@ import com.cloudera.util.Clock;
  **/
 public class TestDiskFailoverBehavior {
 
-  final public static Logger LOG = Logger
+  public static final Logger LOG = LoggerFactory
       .getLogger(TestDiskFailoverBehavior.class);
 
   @Before

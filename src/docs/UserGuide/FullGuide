@@ -1,7 +1,8 @@
 Flume User Guide 
 =================
 flume-dev@cloudera.org
-v0.9.1, August 9th 2010
+
+// version number comes from command line.
 
 ////////////////////
 Licensed to Cloudera, Inc. under one
@@ -33,6 +34,7 @@ include::FullyDist[]
 include::CustomInput[]
 include::UsingOutput[]
 include::Advanced[]
+include::Security[]
 // include::Experimental[] // in really bad shape
 include::Appendix[]
 include::Glossary[]

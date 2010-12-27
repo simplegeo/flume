@@ -27,10 +27,11 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.FlumeSpecException;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.reporter.ReportEvent;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Multimap;
@@ -52,7 +53,7 @@ import com.google.common.collect.Multimap;
  */
 abstract public class TranslatingConfigurationManager implements
     ConfigurationManager, Translator {
-  final static Logger LOG = Logger
+  static final Logger LOG = LoggerFactory
       .getLogger(TranslatingConfigurationManager.class);
   ConfigurationManager parentMan;
   ConfigurationManager selfMan;
@@ -420,15 +421,40 @@ abstract public class TranslatingConfigurationManager implements
   /**
    * {@inheritDoc}
    */
+  synchronized public Map<String, Integer> getChokeMap(String physNode) {
+    return parentMan.getChokeMap(physNode);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  synchronized public void addLogicalNode(String physNode, String logicNode) {
-    parentMan.addLogicalNode(physNode, logicNode);
+  synchronized public boolean addLogicalNode(String physNode, String logicNode) {
+    boolean result;
+
+    result = false;
+
+    if (!getLogicalNodeMap().containsValue(logicNode)) {
+      result = parentMan.addLogicalNode(physNode, logicNode);
+    }
     try {
       updateAll();
     } catch (IOException e) {
       LOG.error("Error when mapping logical->physical node" + logicNode + "->"
           + physNode, e);
     }
+
+    return result;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  synchronized public void addChokeLimit(String physNode, String chokeID,
+      int limit) {
+    parentMan.addChokeLimit(physNode, chokeID, limit);
+
   }
 
   /**

@@ -142,6 +142,16 @@ Refresh the Master page and notice that the version stamp changed to a current
 time, and that the src and sink fields of the configs updated.  After the 
 status changes to "ACTIVE", it is ready to receive console traffic.
 
+On the master, a node can be in one of several states:
+
+* HELLO : A new node instance initially contacted the master.
+* IDLE : A node has completed its configuration or has no configuration.
+* CONFIGURING: A node has received a configuration and is activating the configuration.
+* ACTIVE: A node is actively pulling data from the source and pushing data into the sink.
+* LOST: A node has not contacted the master for an extended period of time (default is after 10x the expected heartbeat period -- 50s by default)
+* DECOMMISSIONED: A node has been purposely decommissioned from a master.
+* ERROR: A node has stopped in an error state.
+
 On the terminal where your Flume node is running, you should be able to type a 
 few lines and then get output back showing your new log message.
 
@@ -261,7 +271,7 @@ event bodies with no metadata.
 
 +dfs("_dfsfile_")+ :: DFS seqfile sink.  Write serialized Flume events
 to a dfs path such as +hdfs://namenode/file+ or +file:///file+ in
-Hadoop's seqfile format.  Note that because of the hdfs write
+Hadoop's seqfile format.  Note that because of the HDFS write
 semantics, no data for this sink write until the sink is closed.
 
 +syslogTcp("_host_",_port_)+ :: Syslog TCP sink.  Forward to events to +host+ 
@@ -438,6 +448,15 @@ host : syslogTcp(5140) | agentSink("localhost",35853) ;
 collector : collectorSource(35853) | collectorSink("hdfs://namenode/user/flume/
 ","syslog");
 ----
+
+NOTE: There are no guarantees that data written to an HDFS file is
+durable until the HDFS file is properly closed.  Because of this, the
+collector sink periodically closes a file and creates a new one in
+HDFS.  The default time between file rolls (close then open new) is
+30s.  If you are writing data at low throughput (<2MB/s) you may want
+to increase the default time by modifying the
++flume.collector.roll.millis+ and +flume.agent.logdir.retransmit+ time
+properties in your flume-site.xml file.
 
 === Section Summary
 

@@ -15,33 +15,70 @@ import java.util.HashSet;
 import java.util.EnumSet;
 import java.util.Collections;
 import java.util.BitSet;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.thrift.*;
+import org.apache.thrift.async.*;
 import org.apache.thrift.meta_data.*;
+import org.apache.thrift.transport.*;
 import org.apache.thrift.protocol.*;
 
 public class FlumeMasterAdminServer {
 
   public interface Iface {
 
-    public long submit(FlumeMasterCommand command) throws TException;
+    public long submit(FlumeMasterCommandThrift command) throws TException;
 
     public boolean isSuccess(long cmdid) throws TException;
 
     public boolean isFailure(long cmdid) throws TException;
 
-    public Map<String,FlumeNodeStatus> getNodeStatuses() throws TException;
+    public Map<String,FlumeNodeStatusThrift> getNodeStatuses() throws TException;
 
-    public Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> getConfigs() throws TException;
+    public Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> getConfigs() throws TException;
 
     public boolean hasCmdId(long cmdid) throws TException;
 
+    public CommandStatusThrift getCmdStatus(long cmdid) throws TException;
+
+    public Map<String,List<String>> getMappings(String physicalNode) throws TException;
+
   }
 
-  public static class Client implements Iface {
+  public interface AsyncIface {
+
+    public void submit(FlumeMasterCommandThrift command, AsyncMethodCallback<AsyncClient.submit_call> resultHandler) throws TException;
+
+    public void isSuccess(long cmdid, AsyncMethodCallback<AsyncClient.isSuccess_call> resultHandler) throws TException;
+
+    public void isFailure(long cmdid, AsyncMethodCallback<AsyncClient.isFailure_call> resultHandler) throws TException;
+
+    public void getNodeStatuses(AsyncMethodCallback<AsyncClient.getNodeStatuses_call> resultHandler) throws TException;
+
+    public void getConfigs(AsyncMethodCallback<AsyncClient.getConfigs_call> resultHandler) throws TException;
+
+    public void hasCmdId(long cmdid, AsyncMethodCallback<AsyncClient.hasCmdId_call> resultHandler) throws TException;
+
+    public void getCmdStatus(long cmdid, AsyncMethodCallback<AsyncClient.getCmdStatus_call> resultHandler) throws TException;
+
+    public void getMappings(String physicalNode, AsyncMethodCallback<AsyncClient.getMappings_call> resultHandler) throws TException;
+
+  }
+
+  public static class Client implements TServiceClient, Iface {
+    public static class Factory implements TServiceClientFactory<Client> {
+      public Factory() {}
+      public Client getClient(TProtocol prot) {
+        return new Client(prot);
+      }
+      public Client getClient(TProtocol iprot, TProtocol oprot) {
+        return new Client(iprot, oprot);
+      }
+    }
+
     public Client(TProtocol prot)
     {
       this(prot, prot);
@@ -68,17 +105,17 @@ public class FlumeMasterAdminServer {
       return this.oprot_;
     }
 
-    public long submit(FlumeMasterCommand command) throws TException
+    public long submit(FlumeMasterCommandThrift command) throws TException
     {
       send_submit(command);
       return recv_submit();
     }
 
-    public void send_submit(FlumeMasterCommand command) throws TException
+    public void send_submit(FlumeMasterCommandThrift command) throws TException
     {
-      oprot_.writeMessageBegin(new TMessage("submit", TMessageType.CALL, seqid_));
+      oprot_.writeMessageBegin(new TMessage("submit", TMessageType.CALL, ++seqid_));
       submit_args args = new submit_args();
-      args.command = command;
+      args.setCommand(command);
       args.write(oprot_);
       oprot_.writeMessageEnd();
       oprot_.getTransport().flush();
@@ -91,6 +128,9 @@ public class FlumeMasterAdminServer {
         TApplicationException x = TApplicationException.read(iprot_);
         iprot_.readMessageEnd();
         throw x;
+      }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "submit failed: out of sequence response");
       }
       submit_result result = new submit_result();
       result.read(iprot_);
@@ -109,9 +149,9 @@ public class FlumeMasterAdminServer {
 
     public void send_isSuccess(long cmdid) throws TException
     {
-      oprot_.writeMessageBegin(new TMessage("isSuccess", TMessageType.CALL, seqid_));
+      oprot_.writeMessageBegin(new TMessage("isSuccess", TMessageType.CALL, ++seqid_));
       isSuccess_args args = new isSuccess_args();
-      args.cmdid = cmdid;
+      args.setCmdid(cmdid);
       args.write(oprot_);
       oprot_.writeMessageEnd();
       oprot_.getTransport().flush();
@@ -124,6 +164,9 @@ public class FlumeMasterAdminServer {
         TApplicationException x = TApplicationException.read(iprot_);
         iprot_.readMessageEnd();
         throw x;
+      }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "isSuccess failed: out of sequence response");
       }
       isSuccess_result result = new isSuccess_result();
       result.read(iprot_);
@@ -142,9 +185,9 @@ public class FlumeMasterAdminServer {
 
     public void send_isFailure(long cmdid) throws TException
     {
-      oprot_.writeMessageBegin(new TMessage("isFailure", TMessageType.CALL, seqid_));
+      oprot_.writeMessageBegin(new TMessage("isFailure", TMessageType.CALL, ++seqid_));
       isFailure_args args = new isFailure_args();
-      args.cmdid = cmdid;
+      args.setCmdid(cmdid);
       args.write(oprot_);
       oprot_.writeMessageEnd();
       oprot_.getTransport().flush();
@@ -158,6 +201,9 @@ public class FlumeMasterAdminServer {
         iprot_.readMessageEnd();
         throw x;
       }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "isFailure failed: out of sequence response");
+      }
       isFailure_result result = new isFailure_result();
       result.read(iprot_);
       iprot_.readMessageEnd();
@@ -167,7 +213,7 @@ public class FlumeMasterAdminServer {
       throw new TApplicationException(TApplicationException.MISSING_RESULT, "isFailure failed: unknown result");
     }
 
-    public Map<String,FlumeNodeStatus> getNodeStatuses() throws TException
+    public Map<String,FlumeNodeStatusThrift> getNodeStatuses() throws TException
     {
       send_getNodeStatuses();
       return recv_getNodeStatuses();
@@ -175,20 +221,23 @@ public class FlumeMasterAdminServer {
 
     public void send_getNodeStatuses() throws TException
     {
-      oprot_.writeMessageBegin(new TMessage("getNodeStatuses", TMessageType.CALL, seqid_));
+      oprot_.writeMessageBegin(new TMessage("getNodeStatuses", TMessageType.CALL, ++seqid_));
       getNodeStatuses_args args = new getNodeStatuses_args();
       args.write(oprot_);
       oprot_.writeMessageEnd();
       oprot_.getTransport().flush();
     }
 
-    public Map<String,FlumeNodeStatus> recv_getNodeStatuses() throws TException
+    public Map<String,FlumeNodeStatusThrift> recv_getNodeStatuses() throws TException
     {
       TMessage msg = iprot_.readMessageBegin();
       if (msg.type == TMessageType.EXCEPTION) {
         TApplicationException x = TApplicationException.read(iprot_);
         iprot_.readMessageEnd();
         throw x;
+      }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "getNodeStatuses failed: out of sequence response");
       }
       getNodeStatuses_result result = new getNodeStatuses_result();
       result.read(iprot_);
@@ -199,7 +248,7 @@ public class FlumeMasterAdminServer {
       throw new TApplicationException(TApplicationException.MISSING_RESULT, "getNodeStatuses failed: unknown result");
     }
 
-    public Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> getConfigs() throws TException
+    public Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> getConfigs() throws TException
     {
       send_getConfigs();
       return recv_getConfigs();
@@ -207,20 +256,23 @@ public class FlumeMasterAdminServer {
 
     public void send_getConfigs() throws TException
     {
-      oprot_.writeMessageBegin(new TMessage("getConfigs", TMessageType.CALL, seqid_));
+      oprot_.writeMessageBegin(new TMessage("getConfigs", TMessageType.CALL, ++seqid_));
       getConfigs_args args = new getConfigs_args();
       args.write(oprot_);
       oprot_.writeMessageEnd();
       oprot_.getTransport().flush();
     }
 
-    public Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> recv_getConfigs() throws TException
+    public Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> recv_getConfigs() throws TException
     {
       TMessage msg = iprot_.readMessageBegin();
       if (msg.type == TMessageType.EXCEPTION) {
         TApplicationException x = TApplicationException.read(iprot_);
         iprot_.readMessageEnd();
         throw x;
+      }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "getConfigs failed: out of sequence response");
       }
       getConfigs_result result = new getConfigs_result();
       result.read(iprot_);
@@ -239,9 +291,9 @@ public class FlumeMasterAdminServer {
 
     public void send_hasCmdId(long cmdid) throws TException
     {
-      oprot_.writeMessageBegin(new TMessage("hasCmdId", TMessageType.CALL, seqid_));
+      oprot_.writeMessageBegin(new TMessage("hasCmdId", TMessageType.CALL, ++seqid_));
       hasCmdId_args args = new hasCmdId_args();
-      args.cmdid = cmdid;
+      args.setCmdid(cmdid);
       args.write(oprot_);
       oprot_.writeMessageEnd();
       oprot_.getTransport().flush();
@@ -255,6 +307,9 @@ public class FlumeMasterAdminServer {
         iprot_.readMessageEnd();
         throw x;
       }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "hasCmdId failed: out of sequence response");
+      }
       hasCmdId_result result = new hasCmdId_result();
       result.read(iprot_);
       iprot_.readMessageEnd();
@@ -264,7 +319,340 @@ public class FlumeMasterAdminServer {
       throw new TApplicationException(TApplicationException.MISSING_RESULT, "hasCmdId failed: unknown result");
     }
 
+    public CommandStatusThrift getCmdStatus(long cmdid) throws TException
+    {
+      send_getCmdStatus(cmdid);
+      return recv_getCmdStatus();
+    }
+
+    public void send_getCmdStatus(long cmdid) throws TException
+    {
+      oprot_.writeMessageBegin(new TMessage("getCmdStatus", TMessageType.CALL, ++seqid_));
+      getCmdStatus_args args = new getCmdStatus_args();
+      args.setCmdid(cmdid);
+      args.write(oprot_);
+      oprot_.writeMessageEnd();
+      oprot_.getTransport().flush();
+    }
+
+    public CommandStatusThrift recv_getCmdStatus() throws TException
+    {
+      TMessage msg = iprot_.readMessageBegin();
+      if (msg.type == TMessageType.EXCEPTION) {
+        TApplicationException x = TApplicationException.read(iprot_);
+        iprot_.readMessageEnd();
+        throw x;
+      }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "getCmdStatus failed: out of sequence response");
+      }
+      getCmdStatus_result result = new getCmdStatus_result();
+      result.read(iprot_);
+      iprot_.readMessageEnd();
+      if (result.isSetSuccess()) {
+        return result.success;
+      }
+      throw new TApplicationException(TApplicationException.MISSING_RESULT, "getCmdStatus failed: unknown result");
+    }
+
+    public Map<String,List<String>> getMappings(String physicalNode) throws TException
+    {
+      send_getMappings(physicalNode);
+      return recv_getMappings();
+    }
+
+    public void send_getMappings(String physicalNode) throws TException
+    {
+      oprot_.writeMessageBegin(new TMessage("getMappings", TMessageType.CALL, ++seqid_));
+      getMappings_args args = new getMappings_args();
+      args.setPhysicalNode(physicalNode);
+      args.write(oprot_);
+      oprot_.writeMessageEnd();
+      oprot_.getTransport().flush();
+    }
+
+    public Map<String,List<String>> recv_getMappings() throws TException
+    {
+      TMessage msg = iprot_.readMessageBegin();
+      if (msg.type == TMessageType.EXCEPTION) {
+        TApplicationException x = TApplicationException.read(iprot_);
+        iprot_.readMessageEnd();
+        throw x;
+      }
+      if (msg.seqid != seqid_) {
+        throw new TApplicationException(TApplicationException.BAD_SEQUENCE_ID, "getMappings failed: out of sequence response");
+      }
+      getMappings_result result = new getMappings_result();
+      result.read(iprot_);
+      iprot_.readMessageEnd();
+      if (result.isSetSuccess()) {
+        return result.success;
+      }
+      throw new TApplicationException(TApplicationException.MISSING_RESULT, "getMappings failed: unknown result");
+    }
+
   }
+  public static class AsyncClient extends TAsyncClient implements AsyncIface {
+    public static class Factory implements TAsyncClientFactory<AsyncClient> {
+      private TAsyncClientManager clientManager;
+      private TProtocolFactory protocolFactory;
+      public Factory(TAsyncClientManager clientManager, TProtocolFactory protocolFactory) {
+        this.clientManager = clientManager;
+        this.protocolFactory = protocolFactory;
+      }
+      public AsyncClient getAsyncClient(TNonblockingTransport transport) {
+        return new AsyncClient(protocolFactory, clientManager, transport);
+      }
+    }
+
+    public AsyncClient(TProtocolFactory protocolFactory, TAsyncClientManager clientManager, TNonblockingTransport transport) {
+      super(protocolFactory, clientManager, transport);
+    }
+
+    public void submit(FlumeMasterCommandThrift command, AsyncMethodCallback<submit_call> resultHandler) throws TException {
+      checkReady();
+      submit_call method_call = new submit_call(command, resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class submit_call extends TAsyncMethodCall {
+      private FlumeMasterCommandThrift command;
+      public submit_call(FlumeMasterCommandThrift command, AsyncMethodCallback<submit_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.command = command;
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("submit", TMessageType.CALL, 0));
+        submit_args args = new submit_args();
+        args.setCommand(command);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public long getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_submit();
+      }
+    }
+
+    public void isSuccess(long cmdid, AsyncMethodCallback<isSuccess_call> resultHandler) throws TException {
+      checkReady();
+      isSuccess_call method_call = new isSuccess_call(cmdid, resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class isSuccess_call extends TAsyncMethodCall {
+      private long cmdid;
+      public isSuccess_call(long cmdid, AsyncMethodCallback<isSuccess_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.cmdid = cmdid;
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("isSuccess", TMessageType.CALL, 0));
+        isSuccess_args args = new isSuccess_args();
+        args.setCmdid(cmdid);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public boolean getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_isSuccess();
+      }
+    }
+
+    public void isFailure(long cmdid, AsyncMethodCallback<isFailure_call> resultHandler) throws TException {
+      checkReady();
+      isFailure_call method_call = new isFailure_call(cmdid, resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class isFailure_call extends TAsyncMethodCall {
+      private long cmdid;
+      public isFailure_call(long cmdid, AsyncMethodCallback<isFailure_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.cmdid = cmdid;
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("isFailure", TMessageType.CALL, 0));
+        isFailure_args args = new isFailure_args();
+        args.setCmdid(cmdid);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public boolean getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_isFailure();
+      }
+    }
+
+    public void getNodeStatuses(AsyncMethodCallback<getNodeStatuses_call> resultHandler) throws TException {
+      checkReady();
+      getNodeStatuses_call method_call = new getNodeStatuses_call(resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class getNodeStatuses_call extends TAsyncMethodCall {
+      public getNodeStatuses_call(AsyncMethodCallback<getNodeStatuses_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("getNodeStatuses", TMessageType.CALL, 0));
+        getNodeStatuses_args args = new getNodeStatuses_args();
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public Map<String,FlumeNodeStatusThrift> getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_getNodeStatuses();
+      }
+    }
+
+    public void getConfigs(AsyncMethodCallback<getConfigs_call> resultHandler) throws TException {
+      checkReady();
+      getConfigs_call method_call = new getConfigs_call(resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class getConfigs_call extends TAsyncMethodCall {
+      public getConfigs_call(AsyncMethodCallback<getConfigs_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("getConfigs", TMessageType.CALL, 0));
+        getConfigs_args args = new getConfigs_args();
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_getConfigs();
+      }
+    }
+
+    public void hasCmdId(long cmdid, AsyncMethodCallback<hasCmdId_call> resultHandler) throws TException {
+      checkReady();
+      hasCmdId_call method_call = new hasCmdId_call(cmdid, resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class hasCmdId_call extends TAsyncMethodCall {
+      private long cmdid;
+      public hasCmdId_call(long cmdid, AsyncMethodCallback<hasCmdId_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.cmdid = cmdid;
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("hasCmdId", TMessageType.CALL, 0));
+        hasCmdId_args args = new hasCmdId_args();
+        args.setCmdid(cmdid);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public boolean getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_hasCmdId();
+      }
+    }
+
+    public void getCmdStatus(long cmdid, AsyncMethodCallback<getCmdStatus_call> resultHandler) throws TException {
+      checkReady();
+      getCmdStatus_call method_call = new getCmdStatus_call(cmdid, resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class getCmdStatus_call extends TAsyncMethodCall {
+      private long cmdid;
+      public getCmdStatus_call(long cmdid, AsyncMethodCallback<getCmdStatus_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.cmdid = cmdid;
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("getCmdStatus", TMessageType.CALL, 0));
+        getCmdStatus_args args = new getCmdStatus_args();
+        args.setCmdid(cmdid);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public CommandStatusThrift getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_getCmdStatus();
+      }
+    }
+
+    public void getMappings(String physicalNode, AsyncMethodCallback<getMappings_call> resultHandler) throws TException {
+      checkReady();
+      getMappings_call method_call = new getMappings_call(physicalNode, resultHandler, this, protocolFactory, transport);
+      manager.call(method_call);
+    }
+
+    public static class getMappings_call extends TAsyncMethodCall {
+      private String physicalNode;
+      public getMappings_call(String physicalNode, AsyncMethodCallback<getMappings_call> resultHandler, TAsyncClient client, TProtocolFactory protocolFactory, TNonblockingTransport transport) throws TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.physicalNode = physicalNode;
+      }
+
+      public void write_args(TProtocol prot) throws TException {
+        prot.writeMessageBegin(new TMessage("getMappings", TMessageType.CALL, 0));
+        getMappings_args args = new getMappings_args();
+        args.setPhysicalNode(physicalNode);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public Map<String,List<String>> getResult() throws TException {
+        if (getState() != State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        TMemoryInputTransport memoryTransport = new TMemoryInputTransport(getFrameBuffer().array());
+        TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_getMappings();
+      }
+    }
+
+  }
+
   public static class Processor implements TProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(Processor.class.getName());
     public Processor(Iface iface)
@@ -276,6 +664,8 @@ public class FlumeMasterAdminServer {
       processMap_.put("getNodeStatuses", new getNodeStatuses());
       processMap_.put("getConfigs", new getConfigs());
       processMap_.put("hasCmdId", new hasCmdId());
+      processMap_.put("getCmdStatus", new getCmdStatus());
+      processMap_.put("getMappings", new getMappings());
     }
 
     protected static interface ProcessFunction {
@@ -307,7 +697,17 @@ public class FlumeMasterAdminServer {
       public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
       {
         submit_args args = new submit_args();
-        args.read(iprot);
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("submit", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
         iprot.readMessageEnd();
         submit_result result = new submit_result();
         result.success = iface_.submit(args.command);
@@ -324,7 +724,17 @@ public class FlumeMasterAdminServer {
       public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
       {
         isSuccess_args args = new isSuccess_args();
-        args.read(iprot);
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("isSuccess", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
         iprot.readMessageEnd();
         isSuccess_result result = new isSuccess_result();
         result.success = iface_.isSuccess(args.cmdid);
@@ -341,7 +751,17 @@ public class FlumeMasterAdminServer {
       public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
       {
         isFailure_args args = new isFailure_args();
-        args.read(iprot);
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("isFailure", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
         iprot.readMessageEnd();
         isFailure_result result = new isFailure_result();
         result.success = iface_.isFailure(args.cmdid);
@@ -358,7 +778,17 @@ public class FlumeMasterAdminServer {
       public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
       {
         getNodeStatuses_args args = new getNodeStatuses_args();
-        args.read(iprot);
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("getNodeStatuses", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
         iprot.readMessageEnd();
         getNodeStatuses_result result = new getNodeStatuses_result();
         result.success = iface_.getNodeStatuses();
@@ -374,7 +804,17 @@ public class FlumeMasterAdminServer {
       public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
       {
         getConfigs_args args = new getConfigs_args();
-        args.read(iprot);
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("getConfigs", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
         iprot.readMessageEnd();
         getConfigs_result result = new getConfigs_result();
         result.success = iface_.getConfigs();
@@ -390,7 +830,17 @@ public class FlumeMasterAdminServer {
       public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
       {
         hasCmdId_args args = new hasCmdId_args();
-        args.read(iprot);
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("hasCmdId", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
         iprot.readMessageEnd();
         hasCmdId_result result = new hasCmdId_result();
         result.success = iface_.hasCmdId(args.cmdid);
@@ -403,25 +853,75 @@ public class FlumeMasterAdminServer {
 
     }
 
+    private class getCmdStatus implements ProcessFunction {
+      public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
+      {
+        getCmdStatus_args args = new getCmdStatus_args();
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("getCmdStatus", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
+        iprot.readMessageEnd();
+        getCmdStatus_result result = new getCmdStatus_result();
+        result.success = iface_.getCmdStatus(args.cmdid);
+        oprot.writeMessageBegin(new TMessage("getCmdStatus", TMessageType.REPLY, seqid));
+        result.write(oprot);
+        oprot.writeMessageEnd();
+        oprot.getTransport().flush();
+      }
+
+    }
+
+    private class getMappings implements ProcessFunction {
+      public void process(int seqid, TProtocol iprot, TProtocol oprot) throws TException
+      {
+        getMappings_args args = new getMappings_args();
+        try {
+          args.read(iprot);
+        } catch (TProtocolException e) {
+          iprot.readMessageEnd();
+          TApplicationException x = new TApplicationException(TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new TMessage("getMappings", TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
+        iprot.readMessageEnd();
+        getMappings_result result = new getMappings_result();
+        result.success = iface_.getMappings(args.physicalNode);
+        oprot.writeMessageBegin(new TMessage("getMappings", TMessageType.REPLY, seqid));
+        result.write(oprot);
+        oprot.writeMessageEnd();
+        oprot.getTransport().flush();
+      }
+
+    }
+
   }
 
-  public static class submit_args implements TBase<submit_args._Fields>, java.io.Serializable, Cloneable, Comparable<submit_args>   {
+  public static class submit_args implements TBase<submit_args, submit_args._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("submit_args");
 
     private static final TField COMMAND_FIELD_DESC = new TField("command", TType.STRUCT, (short)1);
 
-    public FlumeMasterCommand command;
+    public FlumeMasterCommandThrift command;
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements TFieldIdEnum {
       COMMAND((short)1, "command");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -430,7 +930,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 1: // COMMAND
+            return COMMAND;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -469,12 +974,12 @@ public class FlumeMasterAdminServer {
 
     // isset id assignments
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.COMMAND, new FieldMetaData("command", TFieldRequirementType.DEFAULT, 
-          new StructMetaData(TType.STRUCT, FlumeMasterCommand.class)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.COMMAND, new FieldMetaData("command", TFieldRequirementType.DEFAULT, 
+          new StructMetaData(TType.STRUCT, FlumeMasterCommandThrift.class)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(submit_args.class, metaDataMap);
     }
 
@@ -482,7 +987,7 @@ public class FlumeMasterAdminServer {
     }
 
     public submit_args(
-      FlumeMasterCommand command)
+      FlumeMasterCommandThrift command)
     {
       this();
       this.command = command;
@@ -493,7 +998,7 @@ public class FlumeMasterAdminServer {
      */
     public submit_args(submit_args other) {
       if (other.isSetCommand()) {
-        this.command = new FlumeMasterCommand(other.command);
+        this.command = new FlumeMasterCommandThrift(other.command);
       }
     }
 
@@ -506,11 +1011,16 @@ public class FlumeMasterAdminServer {
       return new submit_args(this);
     }
 
-    public FlumeMasterCommand getCommand() {
+    @Override
+    public void clear() {
+      this.command = null;
+    }
+
+    public FlumeMasterCommandThrift getCommand() {
       return this.command;
     }
 
-    public submit_args setCommand(FlumeMasterCommand command) {
+    public submit_args setCommand(FlumeMasterCommandThrift command) {
       this.command = command;
       return this;
     }
@@ -536,7 +1046,7 @@ public class FlumeMasterAdminServer {
         if (value == null) {
           unsetCommand();
         } else {
-          setCommand((FlumeMasterCommand)value);
+          setCommand((FlumeMasterCommandThrift)value);
         }
         break;
 
@@ -611,13 +1121,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       submit_args typedOther = (submit_args)other;
 
-      lastComparison = Boolean.valueOf(isSetCommand()).compareTo(isSetCommand());
+      lastComparison = Boolean.valueOf(isSetCommand()).compareTo(typedOther.isSetCommand());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(command, typedOther.command);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetCommand()) {        lastComparison = TBaseHelper.compareTo(this.command, typedOther.command);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -631,22 +1142,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case COMMAND:
-              if (field.type == TType.STRUCT) {
-                this.command = new FlumeMasterCommand();
-                this.command.read(iprot);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 1: // COMMAND
+            if (field.type == TType.STRUCT) {
+              this.command = new FlumeMasterCommandThrift();
+              this.command.read(iprot);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -689,7 +1197,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class submit_result implements TBase<submit_result._Fields>, java.io.Serializable, Cloneable, Comparable<submit_result>   {
+  public static class submit_result implements TBase<submit_result, submit_result._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("submit_result");
 
     private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.I64, (short)0);
@@ -700,12 +1208,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
       SUCCESS((short)0, "success");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -714,7 +1220,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -755,12 +1266,12 @@ public class FlumeMasterAdminServer {
     private static final int __SUCCESS_ISSET_ID = 0;
     private BitSet __isset_bit_vector = new BitSet(1);
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
-          new FieldValueMetaData(TType.I64)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.I64)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(submit_result.class, metaDataMap);
     }
 
@@ -791,6 +1302,12 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public submit_result clone() {
       return new submit_result(this);
+    }
+
+    @Override
+    public void clear() {
+      setSuccessIsSet(false);
+      this.success = 0;
     }
 
     public long getSuccess() {
@@ -897,13 +1414,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       submit_result typedOther = (submit_result)other;
 
-      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(isSetSuccess());
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(success, typedOther.success);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -917,22 +1435,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case SUCCESS:
-              if (field.type == TType.I64) {
-                this.success = iprot.readI64();
-                setSuccessIsSet(true);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.I64) {
+              this.success = iprot.readI64();
+              setSuccessIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -970,7 +1485,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class isSuccess_args implements TBase<isSuccess_args._Fields>, java.io.Serializable, Cloneable, Comparable<isSuccess_args>   {
+  public static class isSuccess_args implements TBase<isSuccess_args, isSuccess_args._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("isSuccess_args");
 
     private static final TField CMDID_FIELD_DESC = new TField("cmdid", TType.I64, (short)1);
@@ -981,12 +1496,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
       CMDID((short)1, "cmdid");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -995,7 +1508,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 1: // CMDID
+            return CMDID;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -1036,12 +1554,12 @@ public class FlumeMasterAdminServer {
     private static final int __CMDID_ISSET_ID = 0;
     private BitSet __isset_bit_vector = new BitSet(1);
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.CMDID, new FieldMetaData("cmdid", TFieldRequirementType.DEFAULT, 
-          new FieldValueMetaData(TType.I64)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.CMDID, new FieldMetaData("cmdid", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.I64)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(isSuccess_args.class, metaDataMap);
     }
 
@@ -1072,6 +1590,12 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public isSuccess_args clone() {
       return new isSuccess_args(this);
+    }
+
+    @Override
+    public void clear() {
+      setCmdidIsSet(false);
+      this.cmdid = 0;
     }
 
     public long getCmdid() {
@@ -1178,13 +1702,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       isSuccess_args typedOther = (isSuccess_args)other;
 
-      lastComparison = Boolean.valueOf(isSetCmdid()).compareTo(isSetCmdid());
+      lastComparison = Boolean.valueOf(isSetCmdid()).compareTo(typedOther.isSetCmdid());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(cmdid, typedOther.cmdid);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetCmdid()) {        lastComparison = TBaseHelper.compareTo(this.cmdid, typedOther.cmdid);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -1198,22 +1723,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case CMDID:
-              if (field.type == TType.I64) {
-                this.cmdid = iprot.readI64();
-                setCmdidIsSet(true);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 1: // CMDID
+            if (field.type == TType.I64) {
+              this.cmdid = iprot.readI64();
+              setCmdidIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -1250,7 +1772,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class isSuccess_result implements TBase<isSuccess_result._Fields>, java.io.Serializable, Cloneable, Comparable<isSuccess_result>   {
+  public static class isSuccess_result implements TBase<isSuccess_result, isSuccess_result._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("isSuccess_result");
 
     private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.BOOL, (short)0);
@@ -1261,12 +1783,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
       SUCCESS((short)0, "success");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -1275,7 +1795,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -1316,12 +1841,12 @@ public class FlumeMasterAdminServer {
     private static final int __SUCCESS_ISSET_ID = 0;
     private BitSet __isset_bit_vector = new BitSet(1);
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
-          new FieldValueMetaData(TType.BOOL)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.BOOL)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(isSuccess_result.class, metaDataMap);
     }
 
@@ -1352,6 +1877,12 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public isSuccess_result clone() {
       return new isSuccess_result(this);
+    }
+
+    @Override
+    public void clear() {
+      setSuccessIsSet(false);
+      this.success = false;
     }
 
     public boolean isSuccess() {
@@ -1458,13 +1989,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       isSuccess_result typedOther = (isSuccess_result)other;
 
-      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(isSetSuccess());
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(success, typedOther.success);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -1478,22 +2010,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case SUCCESS:
-              if (field.type == TType.BOOL) {
-                this.success = iprot.readBool();
-                setSuccessIsSet(true);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.BOOL) {
+              this.success = iprot.readBool();
+              setSuccessIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -1531,7 +2060,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class isFailure_args implements TBase<isFailure_args._Fields>, java.io.Serializable, Cloneable, Comparable<isFailure_args>   {
+  public static class isFailure_args implements TBase<isFailure_args, isFailure_args._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("isFailure_args");
 
     private static final TField CMDID_FIELD_DESC = new TField("cmdid", TType.I64, (short)1);
@@ -1542,12 +2071,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
       CMDID((short)1, "cmdid");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -1556,7 +2083,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 1: // CMDID
+            return CMDID;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -1597,12 +2129,12 @@ public class FlumeMasterAdminServer {
     private static final int __CMDID_ISSET_ID = 0;
     private BitSet __isset_bit_vector = new BitSet(1);
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.CMDID, new FieldMetaData("cmdid", TFieldRequirementType.DEFAULT, 
-          new FieldValueMetaData(TType.I64)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.CMDID, new FieldMetaData("cmdid", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.I64)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(isFailure_args.class, metaDataMap);
     }
 
@@ -1633,6 +2165,12 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public isFailure_args clone() {
       return new isFailure_args(this);
+    }
+
+    @Override
+    public void clear() {
+      setCmdidIsSet(false);
+      this.cmdid = 0;
     }
 
     public long getCmdid() {
@@ -1739,13 +2277,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       isFailure_args typedOther = (isFailure_args)other;
 
-      lastComparison = Boolean.valueOf(isSetCmdid()).compareTo(isSetCmdid());
+      lastComparison = Boolean.valueOf(isSetCmdid()).compareTo(typedOther.isSetCmdid());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(cmdid, typedOther.cmdid);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetCmdid()) {        lastComparison = TBaseHelper.compareTo(this.cmdid, typedOther.cmdid);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -1759,22 +2298,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case CMDID:
-              if (field.type == TType.I64) {
-                this.cmdid = iprot.readI64();
-                setCmdidIsSet(true);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 1: // CMDID
+            if (field.type == TType.I64) {
+              this.cmdid = iprot.readI64();
+              setCmdidIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -1811,7 +2347,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class isFailure_result implements TBase<isFailure_result._Fields>, java.io.Serializable, Cloneable, Comparable<isFailure_result>   {
+  public static class isFailure_result implements TBase<isFailure_result, isFailure_result._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("isFailure_result");
 
     private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.BOOL, (short)0);
@@ -1822,12 +2358,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
       SUCCESS((short)0, "success");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -1836,7 +2370,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -1877,12 +2416,12 @@ public class FlumeMasterAdminServer {
     private static final int __SUCCESS_ISSET_ID = 0;
     private BitSet __isset_bit_vector = new BitSet(1);
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
-          new FieldValueMetaData(TType.BOOL)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.BOOL)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(isFailure_result.class, metaDataMap);
     }
 
@@ -1913,6 +2452,12 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public isFailure_result clone() {
       return new isFailure_result(this);
+    }
+
+    @Override
+    public void clear() {
+      setSuccessIsSet(false);
+      this.success = false;
     }
 
     public boolean isSuccess() {
@@ -2019,13 +2564,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       isFailure_result typedOther = (isFailure_result)other;
 
-      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(isSetSuccess());
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(success, typedOther.success);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -2039,22 +2585,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case SUCCESS:
-              if (field.type == TType.BOOL) {
-                this.success = iprot.readBool();
-                setSuccessIsSet(true);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.BOOL) {
+              this.success = iprot.readBool();
+              setSuccessIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -2092,7 +2635,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class getNodeStatuses_args implements TBase<getNodeStatuses_args._Fields>, java.io.Serializable, Cloneable, Comparable<getNodeStatuses_args>   {
+  public static class getNodeStatuses_args implements TBase<getNodeStatuses_args, getNodeStatuses_args._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("getNodeStatuses_args");
 
 
@@ -2101,12 +2644,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
 ;
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -2115,7 +2656,10 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          default:
+            return null;
+        }
       }
 
       /**
@@ -2151,10 +2695,10 @@ public class FlumeMasterAdminServer {
         return _fieldName;
       }
     }
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(getNodeStatuses_args.class, metaDataMap);
     }
 
@@ -2174,6 +2718,10 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public getNodeStatuses_args clone() {
       return new getNodeStatuses_args(this);
+    }
+
+    @Override
+    public void clear() {
     }
 
     public void setFieldValue(_Fields field, Object value) {
@@ -2247,14 +2795,11 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -2285,23 +2830,21 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class getNodeStatuses_result implements TBase<getNodeStatuses_result._Fields>, java.io.Serializable, Cloneable   {
+  public static class getNodeStatuses_result implements TBase<getNodeStatuses_result, getNodeStatuses_result._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("getNodeStatuses_result");
 
     private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.MAP, (short)0);
 
-    public Map<String,FlumeNodeStatus> success;
+    public Map<String,FlumeNodeStatusThrift> success;
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements TFieldIdEnum {
       SUCCESS((short)0, "success");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -2310,7 +2853,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -2349,14 +2897,14 @@ public class FlumeMasterAdminServer {
 
     // isset id assignments
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
           new MapMetaData(TType.MAP, 
               new FieldValueMetaData(TType.STRING), 
-              new StructMetaData(TType.STRUCT, FlumeNodeStatus.class))));
-    }});
-
-    static {
+              new StructMetaData(TType.STRUCT, FlumeNodeStatusThrift.class))));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(getNodeStatuses_result.class, metaDataMap);
     }
 
@@ -2364,7 +2912,7 @@ public class FlumeMasterAdminServer {
     }
 
     public getNodeStatuses_result(
-      Map<String,FlumeNodeStatus> success)
+      Map<String,FlumeNodeStatusThrift> success)
     {
       this();
       this.success = success;
@@ -2375,15 +2923,15 @@ public class FlumeMasterAdminServer {
      */
     public getNodeStatuses_result(getNodeStatuses_result other) {
       if (other.isSetSuccess()) {
-        Map<String,FlumeNodeStatus> __this__success = new HashMap<String,FlumeNodeStatus>();
-        for (Map.Entry<String, FlumeNodeStatus> other_element : other.success.entrySet()) {
+        Map<String,FlumeNodeStatusThrift> __this__success = new HashMap<String,FlumeNodeStatusThrift>();
+        for (Map.Entry<String, FlumeNodeStatusThrift> other_element : other.success.entrySet()) {
 
           String other_element_key = other_element.getKey();
-          FlumeNodeStatus other_element_value = other_element.getValue();
+          FlumeNodeStatusThrift other_element_value = other_element.getValue();
 
           String __this__success_copy_key = other_element_key;
 
-          FlumeNodeStatus __this__success_copy_value = new FlumeNodeStatus(other_element_value);
+          FlumeNodeStatusThrift __this__success_copy_value = new FlumeNodeStatusThrift(other_element_value);
 
           __this__success.put(__this__success_copy_key, __this__success_copy_value);
         }
@@ -2400,22 +2948,27 @@ public class FlumeMasterAdminServer {
       return new getNodeStatuses_result(this);
     }
 
+    @Override
+    public void clear() {
+      this.success = null;
+    }
+
     public int getSuccessSize() {
       return (this.success == null) ? 0 : this.success.size();
     }
 
-    public void putToSuccess(String key, FlumeNodeStatus val) {
+    public void putToSuccess(String key, FlumeNodeStatusThrift val) {
       if (this.success == null) {
-        this.success = new HashMap<String,FlumeNodeStatus>();
+        this.success = new HashMap<String,FlumeNodeStatusThrift>();
       }
       this.success.put(key, val);
     }
 
-    public Map<String,FlumeNodeStatus> getSuccess() {
+    public Map<String,FlumeNodeStatusThrift> getSuccess() {
       return this.success;
     }
 
-    public getNodeStatuses_result setSuccess(Map<String,FlumeNodeStatus> success) {
+    public getNodeStatuses_result setSuccess(Map<String,FlumeNodeStatusThrift> success) {
       this.success = success;
       return this;
     }
@@ -2441,7 +2994,7 @@ public class FlumeMasterAdminServer {
         if (value == null) {
           unsetSuccess();
         } else {
-          setSuccess((Map<String,FlumeNodeStatus>)value);
+          setSuccess((Map<String,FlumeNodeStatusThrift>)value);
         }
         break;
 
@@ -2508,6 +3061,26 @@ public class FlumeMasterAdminServer {
       return 0;
     }
 
+    public int compareTo(getNodeStatuses_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      getNodeStatuses_result typedOther = (getNodeStatuses_result)other;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
     public void read(TProtocol iprot) throws TException {
       TField field;
       iprot.readStructBegin();
@@ -2517,34 +3090,31 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case SUCCESS:
-              if (field.type == TType.MAP) {
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.MAP) {
+              {
+                TMap _map4 = iprot.readMapBegin();
+                this.success = new HashMap<String,FlumeNodeStatusThrift>(2*_map4.size);
+                for (int _i5 = 0; _i5 < _map4.size; ++_i5)
                 {
-                  TMap _map4 = iprot.readMapBegin();
-                  this.success = new HashMap<String,FlumeNodeStatus>(2*_map4.size);
-                  for (int _i5 = 0; _i5 < _map4.size; ++_i5)
-                  {
-                    String _key6;
-                    FlumeNodeStatus _val7;
-                    _key6 = iprot.readString();
-                    _val7 = new FlumeNodeStatus();
-                    _val7.read(iprot);
-                    this.success.put(_key6, _val7);
-                  }
-                  iprot.readMapEnd();
+                  String _key6;
+                  FlumeNodeStatusThrift _val7;
+                  _key6 = iprot.readString();
+                  _val7 = new FlumeNodeStatusThrift();
+                  _val7.read(iprot);
+                  this.success.put(_key6, _val7);
                 }
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
+                iprot.readMapEnd();
               }
-              break;
-          }
-          iprot.readFieldEnd();
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -2559,7 +3129,7 @@ public class FlumeMasterAdminServer {
         oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
         {
           oprot.writeMapBegin(new TMap(TType.STRING, TType.STRUCT, this.success.size()));
-          for (Map.Entry<String, FlumeNodeStatus> _iter8 : this.success.entrySet())
+          for (Map.Entry<String, FlumeNodeStatusThrift> _iter8 : this.success.entrySet())
           {
             oprot.writeString(_iter8.getKey());
             _iter8.getValue().write(oprot);
@@ -2594,7 +3164,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class getConfigs_args implements TBase<getConfigs_args._Fields>, java.io.Serializable, Cloneable, Comparable<getConfigs_args>   {
+  public static class getConfigs_args implements TBase<getConfigs_args, getConfigs_args._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("getConfigs_args");
 
 
@@ -2603,12 +3173,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
 ;
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -2617,7 +3185,10 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          default:
+            return null;
+        }
       }
 
       /**
@@ -2653,10 +3224,10 @@ public class FlumeMasterAdminServer {
         return _fieldName;
       }
     }
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(getConfigs_args.class, metaDataMap);
     }
 
@@ -2676,6 +3247,10 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public getConfigs_args clone() {
       return new getConfigs_args(this);
+    }
+
+    @Override
+    public void clear() {
     }
 
     public void setFieldValue(_Fields field, Object value) {
@@ -2749,14 +3324,11 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -2787,23 +3359,21 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class getConfigs_result implements TBase<getConfigs_result._Fields>, java.io.Serializable, Cloneable   {
+  public static class getConfigs_result implements TBase<getConfigs_result, getConfigs_result._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("getConfigs_result");
 
     private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.MAP, (short)0);
 
-    public Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> success;
+    public Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> success;
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements TFieldIdEnum {
       SUCCESS((short)0, "success");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -2812,7 +3382,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -2851,14 +3426,14 @@ public class FlumeMasterAdminServer {
 
     // isset id assignments
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
           new MapMetaData(TType.MAP, 
               new FieldValueMetaData(TType.STRING), 
-              new StructMetaData(TType.STRUCT, com.cloudera.flume.conf.thrift.FlumeConfigData.class))));
-    }});
-
-    static {
+              new StructMetaData(TType.STRUCT, com.cloudera.flume.conf.thrift.ThriftFlumeConfigData.class))));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(getConfigs_result.class, metaDataMap);
     }
 
@@ -2866,7 +3441,7 @@ public class FlumeMasterAdminServer {
     }
 
     public getConfigs_result(
-      Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> success)
+      Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> success)
     {
       this();
       this.success = success;
@@ -2877,15 +3452,15 @@ public class FlumeMasterAdminServer {
      */
     public getConfigs_result(getConfigs_result other) {
       if (other.isSetSuccess()) {
-        Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> __this__success = new HashMap<String,com.cloudera.flume.conf.thrift.FlumeConfigData>();
-        for (Map.Entry<String, com.cloudera.flume.conf.thrift.FlumeConfigData> other_element : other.success.entrySet()) {
+        Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> __this__success = new HashMap<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData>();
+        for (Map.Entry<String, com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> other_element : other.success.entrySet()) {
 
           String other_element_key = other_element.getKey();
-          com.cloudera.flume.conf.thrift.FlumeConfigData other_element_value = other_element.getValue();
+          com.cloudera.flume.conf.thrift.ThriftFlumeConfigData other_element_value = other_element.getValue();
 
           String __this__success_copy_key = other_element_key;
 
-          com.cloudera.flume.conf.thrift.FlumeConfigData __this__success_copy_value = new com.cloudera.flume.conf.thrift.FlumeConfigData(other_element_value);
+          com.cloudera.flume.conf.thrift.ThriftFlumeConfigData __this__success_copy_value = new com.cloudera.flume.conf.thrift.ThriftFlumeConfigData(other_element_value);
 
           __this__success.put(__this__success_copy_key, __this__success_copy_value);
         }
@@ -2902,22 +3477,27 @@ public class FlumeMasterAdminServer {
       return new getConfigs_result(this);
     }
 
+    @Override
+    public void clear() {
+      this.success = null;
+    }
+
     public int getSuccessSize() {
       return (this.success == null) ? 0 : this.success.size();
     }
 
-    public void putToSuccess(String key, com.cloudera.flume.conf.thrift.FlumeConfigData val) {
+    public void putToSuccess(String key, com.cloudera.flume.conf.thrift.ThriftFlumeConfigData val) {
       if (this.success == null) {
-        this.success = new HashMap<String,com.cloudera.flume.conf.thrift.FlumeConfigData>();
+        this.success = new HashMap<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData>();
       }
       this.success.put(key, val);
     }
 
-    public Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> getSuccess() {
+    public Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> getSuccess() {
       return this.success;
     }
 
-    public getConfigs_result setSuccess(Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData> success) {
+    public getConfigs_result setSuccess(Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> success) {
       this.success = success;
       return this;
     }
@@ -2943,7 +3523,7 @@ public class FlumeMasterAdminServer {
         if (value == null) {
           unsetSuccess();
         } else {
-          setSuccess((Map<String,com.cloudera.flume.conf.thrift.FlumeConfigData>)value);
+          setSuccess((Map<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData>)value);
         }
         break;
 
@@ -3010,6 +3590,26 @@ public class FlumeMasterAdminServer {
       return 0;
     }
 
+    public int compareTo(getConfigs_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      getConfigs_result typedOther = (getConfigs_result)other;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
     public void read(TProtocol iprot) throws TException {
       TField field;
       iprot.readStructBegin();
@@ -3019,34 +3619,31 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case SUCCESS:
-              if (field.type == TType.MAP) {
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.MAP) {
+              {
+                TMap _map9 = iprot.readMapBegin();
+                this.success = new HashMap<String,com.cloudera.flume.conf.thrift.ThriftFlumeConfigData>(2*_map9.size);
+                for (int _i10 = 0; _i10 < _map9.size; ++_i10)
                 {
-                  TMap _map9 = iprot.readMapBegin();
-                  this.success = new HashMap<String,com.cloudera.flume.conf.thrift.FlumeConfigData>(2*_map9.size);
-                  for (int _i10 = 0; _i10 < _map9.size; ++_i10)
-                  {
-                    String _key11;
-                    com.cloudera.flume.conf.thrift.FlumeConfigData _val12;
-                    _key11 = iprot.readString();
-                    _val12 = new com.cloudera.flume.conf.thrift.FlumeConfigData();
-                    _val12.read(iprot);
-                    this.success.put(_key11, _val12);
-                  }
-                  iprot.readMapEnd();
+                  String _key11;
+                  com.cloudera.flume.conf.thrift.ThriftFlumeConfigData _val12;
+                  _key11 = iprot.readString();
+                  _val12 = new com.cloudera.flume.conf.thrift.ThriftFlumeConfigData();
+                  _val12.read(iprot);
+                  this.success.put(_key11, _val12);
                 }
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
+                iprot.readMapEnd();
               }
-              break;
-          }
-          iprot.readFieldEnd();
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -3061,7 +3658,7 @@ public class FlumeMasterAdminServer {
         oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
         {
           oprot.writeMapBegin(new TMap(TType.STRING, TType.STRUCT, this.success.size()));
-          for (Map.Entry<String, com.cloudera.flume.conf.thrift.FlumeConfigData> _iter13 : this.success.entrySet())
+          for (Map.Entry<String, com.cloudera.flume.conf.thrift.ThriftFlumeConfigData> _iter13 : this.success.entrySet())
           {
             oprot.writeString(_iter13.getKey());
             _iter13.getValue().write(oprot);
@@ -3096,7 +3693,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class hasCmdId_args implements TBase<hasCmdId_args._Fields>, java.io.Serializable, Cloneable, Comparable<hasCmdId_args>   {
+  public static class hasCmdId_args implements TBase<hasCmdId_args, hasCmdId_args._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("hasCmdId_args");
 
     private static final TField CMDID_FIELD_DESC = new TField("cmdid", TType.I64, (short)1);
@@ -3107,12 +3704,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
       CMDID((short)1, "cmdid");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -3121,7 +3716,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 1: // CMDID
+            return CMDID;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -3162,12 +3762,12 @@ public class FlumeMasterAdminServer {
     private static final int __CMDID_ISSET_ID = 0;
     private BitSet __isset_bit_vector = new BitSet(1);
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.CMDID, new FieldMetaData("cmdid", TFieldRequirementType.DEFAULT, 
-          new FieldValueMetaData(TType.I64)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.CMDID, new FieldMetaData("cmdid", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.I64)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(hasCmdId_args.class, metaDataMap);
     }
 
@@ -3198,6 +3798,12 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public hasCmdId_args clone() {
       return new hasCmdId_args(this);
+    }
+
+    @Override
+    public void clear() {
+      setCmdidIsSet(false);
+      this.cmdid = 0;
     }
 
     public long getCmdid() {
@@ -3304,13 +3910,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       hasCmdId_args typedOther = (hasCmdId_args)other;
 
-      lastComparison = Boolean.valueOf(isSetCmdid()).compareTo(isSetCmdid());
+      lastComparison = Boolean.valueOf(isSetCmdid()).compareTo(typedOther.isSetCmdid());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(cmdid, typedOther.cmdid);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetCmdid()) {        lastComparison = TBaseHelper.compareTo(this.cmdid, typedOther.cmdid);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -3324,22 +3931,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case CMDID:
-              if (field.type == TType.I64) {
-                this.cmdid = iprot.readI64();
-                setCmdidIsSet(true);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 1: // CMDID
+            if (field.type == TType.I64) {
+              this.cmdid = iprot.readI64();
+              setCmdidIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -3376,7 +3980,7 @@ public class FlumeMasterAdminServer {
 
   }
 
-  public static class hasCmdId_result implements TBase<hasCmdId_result._Fields>, java.io.Serializable, Cloneable, Comparable<hasCmdId_result>   {
+  public static class hasCmdId_result implements TBase<hasCmdId_result, hasCmdId_result._Fields>, java.io.Serializable, Cloneable   {
     private static final TStruct STRUCT_DESC = new TStruct("hasCmdId_result");
 
     private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.BOOL, (short)0);
@@ -3387,12 +3991,10 @@ public class FlumeMasterAdminServer {
     public enum _Fields implements TFieldIdEnum {
       SUCCESS((short)0, "success");
 
-      private static final Map<Integer, _Fields> byId = new HashMap<Integer, _Fields>();
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
       static {
         for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byId.put((int)field._thriftId, field);
           byName.put(field.getFieldName(), field);
         }
       }
@@ -3401,7 +4003,12 @@ public class FlumeMasterAdminServer {
        * Find the _Fields constant that matches fieldId, or null if its not found.
        */
       public static _Fields findByThriftId(int fieldId) {
-        return byId.get(fieldId);
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
       }
 
       /**
@@ -3442,12 +4049,12 @@ public class FlumeMasterAdminServer {
     private static final int __SUCCESS_ISSET_ID = 0;
     private BitSet __isset_bit_vector = new BitSet(1);
 
-    public static final Map<_Fields, FieldMetaData> metaDataMap = Collections.unmodifiableMap(new EnumMap<_Fields, FieldMetaData>(_Fields.class) {{
-      put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
-          new FieldValueMetaData(TType.BOOL)));
-    }});
-
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
     static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.BOOL)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
       FieldMetaData.addStructMetaDataMap(hasCmdId_result.class, metaDataMap);
     }
 
@@ -3478,6 +4085,12 @@ public class FlumeMasterAdminServer {
     @Deprecated
     public hasCmdId_result clone() {
       return new hasCmdId_result(this);
+    }
+
+    @Override
+    public void clear() {
+      setSuccessIsSet(false);
+      this.success = false;
     }
 
     public boolean isSuccess() {
@@ -3584,13 +4197,14 @@ public class FlumeMasterAdminServer {
       int lastComparison = 0;
       hasCmdId_result typedOther = (hasCmdId_result)other;
 
-      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(isSetSuccess());
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      lastComparison = TBaseHelper.compareTo(success, typedOther.success);
-      if (lastComparison != 0) {
-        return lastComparison;
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
       }
       return 0;
     }
@@ -3604,22 +4218,19 @@ public class FlumeMasterAdminServer {
         if (field.type == TType.STOP) { 
           break;
         }
-        _Fields fieldId = _Fields.findByThriftId(field.id);
-        if (fieldId == null) {
-          TProtocolUtil.skip(iprot, field.type);
-        } else {
-          switch (fieldId) {
-            case SUCCESS:
-              if (field.type == TType.BOOL) {
-                this.success = iprot.readBool();
-                setSuccessIsSet(true);
-              } else { 
-                TProtocolUtil.skip(iprot, field.type);
-              }
-              break;
-          }
-          iprot.readFieldEnd();
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.BOOL) {
+              this.success = iprot.readBool();
+              setSuccessIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
         }
+        iprot.readFieldEnd();
       }
       iprot.readStructEnd();
 
@@ -3646,6 +4257,1225 @@ public class FlumeMasterAdminServer {
 
       sb.append("success:");
       sb.append(this.success);
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws TException {
+      // check for required fields
+    }
+
+  }
+
+  public static class getCmdStatus_args implements TBase<getCmdStatus_args, getCmdStatus_args._Fields>, java.io.Serializable, Cloneable   {
+    private static final TStruct STRUCT_DESC = new TStruct("getCmdStatus_args");
+
+    private static final TField CMDID_FIELD_DESC = new TField("cmdid", TType.I64, (short)1);
+
+    public long cmdid;
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements TFieldIdEnum {
+      CMDID((short)1, "cmdid");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // CMDID
+            return CMDID;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    private static final int __CMDID_ISSET_ID = 0;
+    private BitSet __isset_bit_vector = new BitSet(1);
+
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.CMDID, new FieldMetaData("cmdid", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.I64)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      FieldMetaData.addStructMetaDataMap(getCmdStatus_args.class, metaDataMap);
+    }
+
+    public getCmdStatus_args() {
+    }
+
+    public getCmdStatus_args(
+      long cmdid)
+    {
+      this();
+      this.cmdid = cmdid;
+      setCmdidIsSet(true);
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public getCmdStatus_args(getCmdStatus_args other) {
+      __isset_bit_vector.clear();
+      __isset_bit_vector.or(other.__isset_bit_vector);
+      this.cmdid = other.cmdid;
+    }
+
+    public getCmdStatus_args deepCopy() {
+      return new getCmdStatus_args(this);
+    }
+
+    @Deprecated
+    public getCmdStatus_args clone() {
+      return new getCmdStatus_args(this);
+    }
+
+    @Override
+    public void clear() {
+      setCmdidIsSet(false);
+      this.cmdid = 0;
+    }
+
+    public long getCmdid() {
+      return this.cmdid;
+    }
+
+    public getCmdStatus_args setCmdid(long cmdid) {
+      this.cmdid = cmdid;
+      setCmdidIsSet(true);
+      return this;
+    }
+
+    public void unsetCmdid() {
+      __isset_bit_vector.clear(__CMDID_ISSET_ID);
+    }
+
+    /** Returns true if field cmdid is set (has been asigned a value) and false otherwise */
+    public boolean isSetCmdid() {
+      return __isset_bit_vector.get(__CMDID_ISSET_ID);
+    }
+
+    public void setCmdidIsSet(boolean value) {
+      __isset_bit_vector.set(__CMDID_ISSET_ID, value);
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case CMDID:
+        if (value == null) {
+          unsetCmdid();
+        } else {
+          setCmdid((Long)value);
+        }
+        break;
+
+      }
+    }
+
+    public void setFieldValue(int fieldID, Object value) {
+      setFieldValue(_Fields.findByThriftIdOrThrow(fieldID), value);
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case CMDID:
+        return new Long(getCmdid());
+
+      }
+      throw new IllegalStateException();
+    }
+
+    public Object getFieldValue(int fieldId) {
+      return getFieldValue(_Fields.findByThriftIdOrThrow(fieldId));
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been asigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      switch (field) {
+      case CMDID:
+        return isSetCmdid();
+      }
+      throw new IllegalStateException();
+    }
+
+    public boolean isSet(int fieldID) {
+      return isSet(_Fields.findByThriftIdOrThrow(fieldID));
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof getCmdStatus_args)
+        return this.equals((getCmdStatus_args)that);
+      return false;
+    }
+
+    public boolean equals(getCmdStatus_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_cmdid = true;
+      boolean that_present_cmdid = true;
+      if (this_present_cmdid || that_present_cmdid) {
+        if (!(this_present_cmdid && that_present_cmdid))
+          return false;
+        if (this.cmdid != that.cmdid)
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(getCmdStatus_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      getCmdStatus_args typedOther = (getCmdStatus_args)other;
+
+      lastComparison = Boolean.valueOf(isSetCmdid()).compareTo(typedOther.isSetCmdid());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetCmdid()) {        lastComparison = TBaseHelper.compareTo(this.cmdid, typedOther.cmdid);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public void read(TProtocol iprot) throws TException {
+      TField field;
+      iprot.readStructBegin();
+      while (true)
+      {
+        field = iprot.readFieldBegin();
+        if (field.type == TType.STOP) { 
+          break;
+        }
+        switch (field.id) {
+          case 1: // CMDID
+            if (field.type == TType.I64) {
+              this.cmdid = iprot.readI64();
+              setCmdidIsSet(true);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
+        }
+        iprot.readFieldEnd();
+      }
+      iprot.readStructEnd();
+
+      // check for required fields of primitive type, which can't be checked in the validate method
+      validate();
+    }
+
+    public void write(TProtocol oprot) throws TException {
+      validate();
+
+      oprot.writeStructBegin(STRUCT_DESC);
+      oprot.writeFieldBegin(CMDID_FIELD_DESC);
+      oprot.writeI64(this.cmdid);
+      oprot.writeFieldEnd();
+      oprot.writeFieldStop();
+      oprot.writeStructEnd();
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("getCmdStatus_args(");
+      boolean first = true;
+
+      sb.append("cmdid:");
+      sb.append(this.cmdid);
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws TException {
+      // check for required fields
+    }
+
+  }
+
+  public static class getCmdStatus_result implements TBase<getCmdStatus_result, getCmdStatus_result._Fields>, java.io.Serializable, Cloneable   {
+    private static final TStruct STRUCT_DESC = new TStruct("getCmdStatus_result");
+
+    private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.STRUCT, (short)0);
+
+    public CommandStatusThrift success;
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements TFieldIdEnum {
+      SUCCESS((short)0, "success");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+          new StructMetaData(TType.STRUCT, CommandStatusThrift.class)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      FieldMetaData.addStructMetaDataMap(getCmdStatus_result.class, metaDataMap);
+    }
+
+    public getCmdStatus_result() {
+    }
+
+    public getCmdStatus_result(
+      CommandStatusThrift success)
+    {
+      this();
+      this.success = success;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public getCmdStatus_result(getCmdStatus_result other) {
+      if (other.isSetSuccess()) {
+        this.success = new CommandStatusThrift(other.success);
+      }
+    }
+
+    public getCmdStatus_result deepCopy() {
+      return new getCmdStatus_result(this);
+    }
+
+    @Deprecated
+    public getCmdStatus_result clone() {
+      return new getCmdStatus_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.success = null;
+    }
+
+    public CommandStatusThrift getSuccess() {
+      return this.success;
+    }
+
+    public getCmdStatus_result setSuccess(CommandStatusThrift success) {
+      this.success = success;
+      return this;
+    }
+
+    public void unsetSuccess() {
+      this.success = null;
+    }
+
+    /** Returns true if field success is set (has been asigned a value) and false otherwise */
+    public boolean isSetSuccess() {
+      return this.success != null;
+    }
+
+    public void setSuccessIsSet(boolean value) {
+      if (!value) {
+        this.success = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case SUCCESS:
+        if (value == null) {
+          unsetSuccess();
+        } else {
+          setSuccess((CommandStatusThrift)value);
+        }
+        break;
+
+      }
+    }
+
+    public void setFieldValue(int fieldID, Object value) {
+      setFieldValue(_Fields.findByThriftIdOrThrow(fieldID), value);
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return getSuccess();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    public Object getFieldValue(int fieldId) {
+      return getFieldValue(_Fields.findByThriftIdOrThrow(fieldId));
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been asigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return isSetSuccess();
+      }
+      throw new IllegalStateException();
+    }
+
+    public boolean isSet(int fieldID) {
+      return isSet(_Fields.findByThriftIdOrThrow(fieldID));
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof getCmdStatus_result)
+        return this.equals((getCmdStatus_result)that);
+      return false;
+    }
+
+    public boolean equals(getCmdStatus_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_success = true && this.isSetSuccess();
+      boolean that_present_success = true && that.isSetSuccess();
+      if (this_present_success || that_present_success) {
+        if (!(this_present_success && that_present_success))
+          return false;
+        if (!this.success.equals(that.success))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(getCmdStatus_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      getCmdStatus_result typedOther = (getCmdStatus_result)other;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public void read(TProtocol iprot) throws TException {
+      TField field;
+      iprot.readStructBegin();
+      while (true)
+      {
+        field = iprot.readFieldBegin();
+        if (field.type == TType.STOP) { 
+          break;
+        }
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.STRUCT) {
+              this.success = new CommandStatusThrift();
+              this.success.read(iprot);
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
+        }
+        iprot.readFieldEnd();
+      }
+      iprot.readStructEnd();
+
+      // check for required fields of primitive type, which can't be checked in the validate method
+      validate();
+    }
+
+    public void write(TProtocol oprot) throws TException {
+      oprot.writeStructBegin(STRUCT_DESC);
+
+      if (this.isSetSuccess()) {
+        oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
+        this.success.write(oprot);
+        oprot.writeFieldEnd();
+      }
+      oprot.writeFieldStop();
+      oprot.writeStructEnd();
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("getCmdStatus_result(");
+      boolean first = true;
+
+      sb.append("success:");
+      if (this.success == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.success);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws TException {
+      // check for required fields
+    }
+
+  }
+
+  public static class getMappings_args implements TBase<getMappings_args, getMappings_args._Fields>, java.io.Serializable, Cloneable   {
+    private static final TStruct STRUCT_DESC = new TStruct("getMappings_args");
+
+    private static final TField PHYSICAL_NODE_FIELD_DESC = new TField("physicalNode", TType.STRING, (short)1);
+
+    public String physicalNode;
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements TFieldIdEnum {
+      PHYSICAL_NODE((short)1, "physicalNode");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // PHYSICAL_NODE
+            return PHYSICAL_NODE;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.PHYSICAL_NODE, new FieldMetaData("physicalNode", TFieldRequirementType.DEFAULT, 
+          new FieldValueMetaData(TType.STRING)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      FieldMetaData.addStructMetaDataMap(getMappings_args.class, metaDataMap);
+    }
+
+    public getMappings_args() {
+    }
+
+    public getMappings_args(
+      String physicalNode)
+    {
+      this();
+      this.physicalNode = physicalNode;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public getMappings_args(getMappings_args other) {
+      if (other.isSetPhysicalNode()) {
+        this.physicalNode = other.physicalNode;
+      }
+    }
+
+    public getMappings_args deepCopy() {
+      return new getMappings_args(this);
+    }
+
+    @Deprecated
+    public getMappings_args clone() {
+      return new getMappings_args(this);
+    }
+
+    @Override
+    public void clear() {
+      this.physicalNode = null;
+    }
+
+    public String getPhysicalNode() {
+      return this.physicalNode;
+    }
+
+    public getMappings_args setPhysicalNode(String physicalNode) {
+      this.physicalNode = physicalNode;
+      return this;
+    }
+
+    public void unsetPhysicalNode() {
+      this.physicalNode = null;
+    }
+
+    /** Returns true if field physicalNode is set (has been asigned a value) and false otherwise */
+    public boolean isSetPhysicalNode() {
+      return this.physicalNode != null;
+    }
+
+    public void setPhysicalNodeIsSet(boolean value) {
+      if (!value) {
+        this.physicalNode = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case PHYSICAL_NODE:
+        if (value == null) {
+          unsetPhysicalNode();
+        } else {
+          setPhysicalNode((String)value);
+        }
+        break;
+
+      }
+    }
+
+    public void setFieldValue(int fieldID, Object value) {
+      setFieldValue(_Fields.findByThriftIdOrThrow(fieldID), value);
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case PHYSICAL_NODE:
+        return getPhysicalNode();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    public Object getFieldValue(int fieldId) {
+      return getFieldValue(_Fields.findByThriftIdOrThrow(fieldId));
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been asigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      switch (field) {
+      case PHYSICAL_NODE:
+        return isSetPhysicalNode();
+      }
+      throw new IllegalStateException();
+    }
+
+    public boolean isSet(int fieldID) {
+      return isSet(_Fields.findByThriftIdOrThrow(fieldID));
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof getMappings_args)
+        return this.equals((getMappings_args)that);
+      return false;
+    }
+
+    public boolean equals(getMappings_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_physicalNode = true && this.isSetPhysicalNode();
+      boolean that_present_physicalNode = true && that.isSetPhysicalNode();
+      if (this_present_physicalNode || that_present_physicalNode) {
+        if (!(this_present_physicalNode && that_present_physicalNode))
+          return false;
+        if (!this.physicalNode.equals(that.physicalNode))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(getMappings_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      getMappings_args typedOther = (getMappings_args)other;
+
+      lastComparison = Boolean.valueOf(isSetPhysicalNode()).compareTo(typedOther.isSetPhysicalNode());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetPhysicalNode()) {        lastComparison = TBaseHelper.compareTo(this.physicalNode, typedOther.physicalNode);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public void read(TProtocol iprot) throws TException {
+      TField field;
+      iprot.readStructBegin();
+      while (true)
+      {
+        field = iprot.readFieldBegin();
+        if (field.type == TType.STOP) { 
+          break;
+        }
+        switch (field.id) {
+          case 1: // PHYSICAL_NODE
+            if (field.type == TType.STRING) {
+              this.physicalNode = iprot.readString();
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
+        }
+        iprot.readFieldEnd();
+      }
+      iprot.readStructEnd();
+
+      // check for required fields of primitive type, which can't be checked in the validate method
+      validate();
+    }
+
+    public void write(TProtocol oprot) throws TException {
+      validate();
+
+      oprot.writeStructBegin(STRUCT_DESC);
+      if (this.physicalNode != null) {
+        oprot.writeFieldBegin(PHYSICAL_NODE_FIELD_DESC);
+        oprot.writeString(this.physicalNode);
+        oprot.writeFieldEnd();
+      }
+      oprot.writeFieldStop();
+      oprot.writeStructEnd();
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("getMappings_args(");
+      boolean first = true;
+
+      sb.append("physicalNode:");
+      if (this.physicalNode == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.physicalNode);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws TException {
+      // check for required fields
+    }
+
+  }
+
+  public static class getMappings_result implements TBase<getMappings_result, getMappings_result._Fields>, java.io.Serializable, Cloneable   {
+    private static final TStruct STRUCT_DESC = new TStruct("getMappings_result");
+
+    private static final TField SUCCESS_FIELD_DESC = new TField("success", TType.MAP, (short)0);
+
+    public Map<String,List<String>> success;
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements TFieldIdEnum {
+      SUCCESS((short)0, "success");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+
+    public static final Map<_Fields, FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, FieldMetaData> tmpMap = new EnumMap<_Fields, FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new FieldMetaData("success", TFieldRequirementType.DEFAULT, 
+          new MapMetaData(TType.MAP, 
+              new FieldValueMetaData(TType.STRING), 
+              new ListMetaData(TType.LIST, 
+                  new FieldValueMetaData(TType.STRING)))));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      FieldMetaData.addStructMetaDataMap(getMappings_result.class, metaDataMap);
+    }
+
+    public getMappings_result() {
+    }
+
+    public getMappings_result(
+      Map<String,List<String>> success)
+    {
+      this();
+      this.success = success;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public getMappings_result(getMappings_result other) {
+      if (other.isSetSuccess()) {
+        Map<String,List<String>> __this__success = new HashMap<String,List<String>>();
+        for (Map.Entry<String, List<String>> other_element : other.success.entrySet()) {
+
+          String other_element_key = other_element.getKey();
+          List<String> other_element_value = other_element.getValue();
+
+          String __this__success_copy_key = other_element_key;
+
+          List<String> __this__success_copy_value = new ArrayList<String>();
+          for (String other_element_value_element : other_element_value) {
+            __this__success_copy_value.add(other_element_value_element);
+          }
+
+          __this__success.put(__this__success_copy_key, __this__success_copy_value);
+        }
+        this.success = __this__success;
+      }
+    }
+
+    public getMappings_result deepCopy() {
+      return new getMappings_result(this);
+    }
+
+    @Deprecated
+    public getMappings_result clone() {
+      return new getMappings_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.success = null;
+    }
+
+    public int getSuccessSize() {
+      return (this.success == null) ? 0 : this.success.size();
+    }
+
+    public void putToSuccess(String key, List<String> val) {
+      if (this.success == null) {
+        this.success = new HashMap<String,List<String>>();
+      }
+      this.success.put(key, val);
+    }
+
+    public Map<String,List<String>> getSuccess() {
+      return this.success;
+    }
+
+    public getMappings_result setSuccess(Map<String,List<String>> success) {
+      this.success = success;
+      return this;
+    }
+
+    public void unsetSuccess() {
+      this.success = null;
+    }
+
+    /** Returns true if field success is set (has been asigned a value) and false otherwise */
+    public boolean isSetSuccess() {
+      return this.success != null;
+    }
+
+    public void setSuccessIsSet(boolean value) {
+      if (!value) {
+        this.success = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case SUCCESS:
+        if (value == null) {
+          unsetSuccess();
+        } else {
+          setSuccess((Map<String,List<String>>)value);
+        }
+        break;
+
+      }
+    }
+
+    public void setFieldValue(int fieldID, Object value) {
+      setFieldValue(_Fields.findByThriftIdOrThrow(fieldID), value);
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return getSuccess();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    public Object getFieldValue(int fieldId) {
+      return getFieldValue(_Fields.findByThriftIdOrThrow(fieldId));
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been asigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return isSetSuccess();
+      }
+      throw new IllegalStateException();
+    }
+
+    public boolean isSet(int fieldID) {
+      return isSet(_Fields.findByThriftIdOrThrow(fieldID));
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof getMappings_result)
+        return this.equals((getMappings_result)that);
+      return false;
+    }
+
+    public boolean equals(getMappings_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_success = true && this.isSetSuccess();
+      boolean that_present_success = true && that.isSetSuccess();
+      if (this_present_success || that_present_success) {
+        if (!(this_present_success && that_present_success))
+          return false;
+        if (!this.success.equals(that.success))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(getMappings_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      getMappings_result typedOther = (getMappings_result)other;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {        lastComparison = TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public void read(TProtocol iprot) throws TException {
+      TField field;
+      iprot.readStructBegin();
+      while (true)
+      {
+        field = iprot.readFieldBegin();
+        if (field.type == TType.STOP) { 
+          break;
+        }
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == TType.MAP) {
+              {
+                TMap _map14 = iprot.readMapBegin();
+                this.success = new HashMap<String,List<String>>(2*_map14.size);
+                for (int _i15 = 0; _i15 < _map14.size; ++_i15)
+                {
+                  String _key16;
+                  List<String> _val17;
+                  _key16 = iprot.readString();
+                  {
+                    TList _list18 = iprot.readListBegin();
+                    _val17 = new ArrayList<String>(_list18.size);
+                    for (int _i19 = 0; _i19 < _list18.size; ++_i19)
+                    {
+                      String _elem20;
+                      _elem20 = iprot.readString();
+                      _val17.add(_elem20);
+                    }
+                    iprot.readListEnd();
+                  }
+                  this.success.put(_key16, _val17);
+                }
+                iprot.readMapEnd();
+              }
+            } else { 
+              TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            TProtocolUtil.skip(iprot, field.type);
+        }
+        iprot.readFieldEnd();
+      }
+      iprot.readStructEnd();
+
+      // check for required fields of primitive type, which can't be checked in the validate method
+      validate();
+    }
+
+    public void write(TProtocol oprot) throws TException {
+      oprot.writeStructBegin(STRUCT_DESC);
+
+      if (this.isSetSuccess()) {
+        oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
+        {
+          oprot.writeMapBegin(new TMap(TType.STRING, TType.LIST, this.success.size()));
+          for (Map.Entry<String, List<String>> _iter21 : this.success.entrySet())
+          {
+            oprot.writeString(_iter21.getKey());
+            {
+              oprot.writeListBegin(new TList(TType.STRING, _iter21.getValue().size()));
+              for (String _iter22 : _iter21.getValue())
+              {
+                oprot.writeString(_iter22);
+              }
+              oprot.writeListEnd();
+            }
+          }
+          oprot.writeMapEnd();
+        }
+        oprot.writeFieldEnd();
+      }
+      oprot.writeFieldStop();
+      oprot.writeStructEnd();
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("getMappings_result(");
+      boolean first = true;
+
+      sb.append("success:");
+      if (this.success == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.success);
+      }
       first = false;
       sb.append(")");
       return sb.toString();

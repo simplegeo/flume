@@ -18,7 +18,6 @@
 <html><head>
 <!-- Copyright (c) 2010 Cloudera, Inc.  All rights reserved. -->
 <!-- Retro web 1.0 flume Agent configuration display -->
-<title>Flume Node: Environment</title>
 <%@ page
 	contentType="text/html; charset=UTF-8"
 	import="javax.servlet.*"
@@ -26,20 +25,28 @@
 	import="java.io.*"
 	import="java.util.*"
 	import="java.text.DecimalFormat"
+        import="com.cloudera.flume.agent.FlumeNode"
 %>
+<title>Flume Node: <%=FlumeNode.getInstance().getPhysicalNodeName()%> :: Environment</title>
+
 <link rel="stylesheet" type="text/css" href="/flume.css" />
 
 </head>
 <body>
 <jsp:include page="menu_agent.jsp" />
 
-<h1>Environment</h1>
+<h1>Flume Node: <%= FlumeNode.getInstance().getPhysicalNodeName()%> : Environment</h1>
+
+<jsp:include page="version.jsp" />
+<hr>
+
+
 
 <table>
 
 <%
   Properties props = System.getProperties();
-  for (Map.Entry<Object,Object> p : props.entrySet()) {
+  for (Map.Entry<Object,Object> p : new TreeMap<Object,Object>(props).entrySet()) {
 %>
     <tr><th><%= p.getKey() %></th><td><div class="<%= p.getKey() %>">
     <%= p.getValue() %>

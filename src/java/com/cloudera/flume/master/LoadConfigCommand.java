@@ -19,7 +19,8 @@ package com.cloudera.flume.master;
 
 import java.io.IOException;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.google.common.base.Preconditions;
@@ -29,7 +30,7 @@ import com.google.common.base.Preconditions;
  */
 public class LoadConfigCommand {
 
-  static Logger LOG = Logger.getLogger(LoadConfigCommand.class);
+  static final Logger LOG = LoggerFactory.getLogger(LoadConfigCommand.class);
 
   /**
    * Actual Command execution.
@@ -37,14 +38,15 @@ public class LoadConfigCommand {
   public static Execable buildExecable() {
     return new Execable() {
       @Override
-      public void exec(String[] argv) {
-        Preconditions.checkArgument(argv.length == 0);
+      public void exec(String[] argv) throws IOException {
+        Preconditions.checkArgument(argv.length == 1);
+        String configFileName = argv[0];
         FlumeMaster master = FlumeMaster.getInstance();
-        String f = FlumeConfiguration.get().getMasterSavefile();
         try {
-          master.getSpecMan().loadConfigFile(f);
+          master.getSpecMan().loadConfigFile(configFileName);
         } catch (IOException e) {
-          LOG.warn("Save Config " + f + " failed", e);
+          LOG.error("Loading Config " + configFileName + " failed", e);
+          throw e;
         }
       }
     };

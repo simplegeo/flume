@@ -20,12 +20,14 @@ package com.cloudera.flume.agent;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.handlers.endtoend.AckListener;
 import com.cloudera.flume.master.MasterAckManager;
 import com.cloudera.flume.reporter.ReportEvent;
@@ -34,7 +36,7 @@ import com.cloudera.flume.reporter.ReportEvent;
  * This mocks out enough of the RPC interface for local tests.
  */
 public class MockMasterRPC implements MasterRPC {
-  static Logger LOG = Logger.getLogger(MockMasterRPC.class);
+  static final Logger LOG = LoggerFactory.getLogger(MockMasterRPC.class);
 
   final MasterAckManager ackman = new MasterAckManager();
 
@@ -51,14 +53,11 @@ public class MockMasterRPC implements MasterRPC {
     return ret;
   }
 
-  @Override
   public void open() {
-
   }
 
   @Override
   public void close() {
-    
   }
 
   @Override
@@ -83,7 +82,13 @@ public class MockMasterRPC implements MasterRPC {
 
   @Override
   public void putReports(Map<String, ReportEvent> reports) throws IOException {
-    
+
+  }
+
+  @Override
+  public HashMap<String, Integer> getChokeMap(String physNode)
+      throws IOException {
+    return new HashMap<String, Integer>();
   }
 
 }

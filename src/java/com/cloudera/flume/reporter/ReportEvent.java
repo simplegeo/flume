@@ -30,12 +30,12 @@ import java.util.TreeMap;
 import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.core.Attributes;
 import com.cloudera.flume.core.EventImpl;
 import com.cloudera.flume.core.Attributes.Type;
-import com.cloudera.flume.reporter.server.FlumeReport;
 import com.google.common.base.Preconditions;
 
 /**
@@ -47,7 +47,7 @@ import com.google.common.base.Preconditions;
  * type information as well.
  */
 public class ReportEvent extends EventImpl {
-  final static Logger LOG = Logger.getLogger(ReportEvent.class);
+  static final Logger LOG = LoggerFactory.getLogger(ReportEvent.class);
 
   final public static String R_NAME = "name";
   final public static String A_COUNT = "count";
@@ -59,10 +59,13 @@ public class ReportEvent extends EventImpl {
   /**
    * Set a long-valued metric to supplied value. NOT THREAD SAFE.
    * 
-   * @param name    metric name, null not allowed, if the report previously 
-   * contained a mapping for the name the old value is replaced with the new.
-   * @param value   metric value to associate with name
-   * @throws IllegalArgumentException if illegal arguments provided
+   * @param name
+   *          metric name, null not allowed, if the report previously contained
+   *          a mapping for the name the old value is replaced with the new.
+   * @param value
+   *          metric value to associate with name
+   * @throws IllegalArgumentException
+   *           if illegal arguments provided
    */
   public void setLongMetric(String name, long value) {
     Preconditions.checkArgument(name != null);
@@ -72,10 +75,13 @@ public class ReportEvent extends EventImpl {
   /**
    * Set a double-valued metric to supplied value. NOT THREAD SAFE.
    * 
-   * @param name    metric name, null not allowed, if the report previously 
-   * contained a mapping for the name the old value is replaced with the new.
-   * @param value   metric value to associate with name
-   * @throws IllegalArgumentException if illegal arguments provided
+   * @param name
+   *          metric name, null not allowed, if the report previously contained
+   *          a mapping for the name the old value is replaced with the new.
+   * @param value
+   *          metric value to associate with name
+   * @throws IllegalArgumentException
+   *           if illegal arguments provided
    */
   public void setDoubleMetric(String name, double value) {
     Preconditions.checkArgument(name != null);
@@ -85,11 +91,14 @@ public class ReportEvent extends EventImpl {
   /**
    * Set a string-valued metric to supplied value. NOT THREAD SAFE.
    * 
-   * @param name    metric name, null not allowed, if the report previously 
-   * contained a mapping for the name the old value is replaced with the new.
-   * @param value   metric value to associate with name. Null values will be
-   * ignored (not included in the report).
-   * @throws IllegalArgumentException if illegal arguments provided
+   * @param name
+   *          metric name, null not allowed, if the report previously contained
+   *          a mapping for the name the old value is replaced with the new.
+   * @param value
+   *          metric value to associate with name. Null values will be ignored
+   *          (not included in the report).
+   * @throws IllegalArgumentException
+   *           if illegal arguments provided
    */
   public void setStringMetric(String name, String value) {
     Preconditions.checkArgument(name != null);
@@ -104,8 +113,10 @@ public class ReportEvent extends EventImpl {
   /**
    * Returns the value of a long-valued metric. NOT THREAD SAFE.
    * 
-   * @param name    metric name, null not allowed
-   * @throws IllegalArgumentException if illegal arguments provided
+   * @param name
+   *          metric name, null not allowed
+   * @throws IllegalArgumentException
+   *           if illegal arguments provided
    */
   public Long getLongMetric(String name) {
     Preconditions.checkArgument(name != null);
@@ -115,8 +126,10 @@ public class ReportEvent extends EventImpl {
   /**
    * Returns the value of a double-valued metric. NOT THREAD SAFE.
    * 
-   * @param name    metric name, null not allowed
-   * @throws IllegalArgumentException if illegal arguments provided
+   * @param name
+   *          metric name, null not allowed
+   * @throws IllegalArgumentException
+   *           if illegal arguments provided
    */
   public Double getDoubleMetric(String name) {
     Preconditions.checkArgument(name != null);
@@ -126,8 +139,10 @@ public class ReportEvent extends EventImpl {
   /**
    * Returns the value of a string-valued metric. NOT THREAD SAFE.
    * 
-   * @param name    metric name, null not allowed
-   * @throws IllegalArgumentException if illegal arguments provided
+   * @param name
+   *          metric name, null not allowed
+   * @throws IllegalArgumentException
+   *           if illegal arguments provided
    */
   public String getStringMetric(String name) {
     Preconditions.checkArgument(name != null);
@@ -178,15 +193,14 @@ public class ReportEvent extends EventImpl {
   }
 
   /**
-   * Constructs a new ReportEvent which has the same metrics as the supplied
-   * Thrift-style FlumeReport
+   * Construct a ReportEvent given various metrics.
    */
-  public ReportEvent(FlumeReport r) {
+  public ReportEvent(Map<String, Long> longMetrics,
+      Map<String, String> stringMetrics, Map<String, Double> doubleMetrics) {
     super(new byte[0]);
-    Preconditions.checkNotNull(r);
-    this.longMetrics.putAll(r.getLongMetrics());
-    this.stringMetrics.putAll(r.getStringMetrics());
-    this.doubleMetrics.putAll(r.getDoubleMetrics());
+    this.longMetrics.putAll(longMetrics);
+    this.stringMetrics.putAll(stringMetrics);
+    this.doubleMetrics.putAll(doubleMetrics);
   }
 
   /**
