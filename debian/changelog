@@ -1,3 +1,12 @@
+flume (0.9.2+1-0sg31) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Deleted the unused thrift generated files.
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Mon, 27 Dec 2010 20:18:48 +0000
+
 flume (0.9.2+1-0sg20) lucid; urgency=low
 
   [ Derek Smith ]
