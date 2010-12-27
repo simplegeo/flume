@@ -34,13 +34,14 @@
 <body>
 <jsp:include page="menu.jsp" />
 
-<h1>Environment</h1>
-
+<h1>Flume Master : Environment</h1>
+<jsp:include page="version.jsp" />
+<hr>
 <table>
 
 <%
   Properties props = System.getProperties();
-  for (Map.Entry<Object,Object> p : props.entrySet()) {
+  for (Map.Entry<Object,Object> p : new TreeMap<Object,Object>(props).entrySet()) {
 %>
     <tr><th><%= p.getKey() %></th><td><div class="<%= p.getKey() %>">
     <%= p.getValue() %>

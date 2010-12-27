@@ -24,10 +24,16 @@ import java.nio.channels.Pipe;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.WritableByteChannel;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Channels that wrap input streams are blocking, so this wrapper creates a
+ * thread that pumps data from input streams, and presents and nonblocking
+ * interface to the data.
+ */
 public class InputStreamPipe {
-  final static Logger LOG = Logger.getLogger(InputStreamPipe.class.getName());
+  static final Logger LOG = LoggerFactory.getLogger(InputStreamPipe.class);
   final InputStream input;
   final Pipe pipe;
   final CopyThread copyThread;
@@ -67,8 +73,6 @@ public class InputStreamPipe {
 
   public static class CopyThread extends Thread {
     volatile boolean keepRunning = true;
-    byte[] bytes = new byte[128];
-    ByteBuffer buffer = ByteBuffer.wrap(bytes);
     InputStream in;
     WritableByteChannel out;
 
@@ -89,13 +93,17 @@ public class InputStreamPipe {
     }
 
     public void run() {
-      // this could be improved
-
+      byte[] bytes = new byte[4096];
+      ByteBuffer buffer = ByteBuffer.wrap(bytes);
       try {
         while (keepRunning) {
           int count = in.read(bytes);
+          // 0 = nothing read
+          // -1 = EOF
+          if (count <= 0) {
 
-          if (count < 0) {
+            // don't burn cpu if there is no progress
+            Clock.sleep(100);
             break;
           }
 
@@ -106,7 +114,9 @@ public class InputStreamPipe {
 
         out.close();
       } catch (IOException e) {
-        LOG.info("Input stream pipe closed",e);
+        LOG.error("Input stream pipe closed", e);
+      } catch (InterruptedException e) {
+        LOG.info("Input stream pipe interrupted");
       }
     }
   }

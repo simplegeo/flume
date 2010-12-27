@@ -21,7 +21,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeConfiguration;
@@ -44,7 +45,7 @@ import com.google.common.base.Preconditions;
  */
 public class InsistentOpenDecorator<S extends EventSink> extends
     EventSinkDecorator<S> implements Reportable {
-  final static Logger LOG = Logger.getLogger(InsistentOpenDecorator.class);
+  static final Logger LOG = LoggerFactory.getLogger(InsistentOpenDecorator.class);
   final BackoffPolicy backoff;
 
   // attribute names
@@ -150,7 +151,11 @@ public class InsistentOpenDecorator<S extends EventSink> extends
     opening = false;
 
     // failed to start
-    throw MultipleIOException.createIOException(exns);
+    IOException ioe = MultipleIOException.createIOException(exns);
+    if (ioe == null) {
+      return;
+    }
+    throw ioe;
   }
 
   @Override

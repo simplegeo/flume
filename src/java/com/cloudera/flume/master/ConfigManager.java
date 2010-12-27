@@ -30,14 +30,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeBuilder;
 import com.cloudera.flume.conf.FlumeConfiguration;
 import com.cloudera.flume.conf.FlumeSpecException;
 import com.cloudera.flume.conf.FlumeSpecGen;
-import com.cloudera.flume.conf.thrift.FlumeConfigData;
+import com.cloudera.flume.conf.FlumeConfigData;
 import com.cloudera.flume.reporter.ReportEvent;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
@@ -48,7 +49,7 @@ import com.google.common.collect.Multimap;
  * This maintains the global configuration state of the flume nodes.
  */
 public class ConfigManager implements ConfigurationManager {
-  static Logger LOG = Logger.getLogger(ConfigManager.class);
+  static final Logger LOG = LoggerFactory.getLogger(ConfigManager.class);
   ConfigStore cfgStore;
   Map<String, String> logicalToPhysical = new HashMap<String, String>();
 
@@ -195,7 +196,7 @@ public class ConfigManager implements ConfigurationManager {
             spec.src, spec.sink);
       }
     } catch (FlumeSpecException e) {
-      LOG.debug(e, e);
+      LOG.debug("Invalid Flume specification", e);
       throw new IOException(e.getMessage());
     } finally {
       if (r != null) {
@@ -262,10 +263,27 @@ public class ConfigManager implements ConfigurationManager {
     return cfgStore.getLogicalNodes(physNode);
   }
 
+  /**
+   *@inheritDoc
+   */
   @Override
-  synchronized public void addLogicalNode(String physNode, String logicNode) {
-    cfgStore.addLogicalNode(physNode, logicNode);
-    logicalToPhysical.put(logicNode, physNode);
+  synchronized public Map<String, Integer> getChokeMap(String physNode) {
+    return cfgStore.getChokeMap(physNode);
+  }
+
+  @Override
+  synchronized public boolean addLogicalNode(String physNode, String logicNode) {
+    if (!logicalToPhysical.containsKey(logicNode)) {
+      cfgStore.addLogicalNode(physNode, logicNode);
+      logicalToPhysical.put(logicNode, physNode);
+
+      return true;
+    } else {
+      LOG.warn("Logical node " + logicNode
+        + " is already assigned to physical node "
+        + logicalToPhysical.get(logicNode) + ". Unmap it first.");
+      return false;
+    }
   }
 
   /**
@@ -401,4 +419,14 @@ public class ConfigManager implements ConfigurationManager {
       logicalToPhysical.put(e.getValue(), e.getKey());
     }
   }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  synchronized public void addChokeLimit(String physNode, String chokeID,
+      int limit) {
+    cfgStore.addChokeLimit(physNode, chokeID, limit);
+  }
+
 }

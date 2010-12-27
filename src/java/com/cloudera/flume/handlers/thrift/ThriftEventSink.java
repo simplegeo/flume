@@ -20,7 +20,6 @@ package com.cloudera.flume.handlers.thrift;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -28,6 +27,8 @@ import org.apache.thrift.transport.TFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.FlumeConfiguration;
@@ -39,11 +40,11 @@ import com.cloudera.flume.handlers.thrift.ThriftFlumeEventServer.Client;
 import com.cloudera.flume.reporter.ReportEvent;
 
 /**
- * This is a sink that sends events to a remote host/port.
+ * This is a sink that sends events to a remote host/port using Thrift.
  */
 public class ThriftEventSink extends EventSink.Base {
 
-  static Logger LOG = Logger.getLogger(ThriftEventSink.class);
+  static final Logger LOG = LoggerFactory.getLogger(ThriftEventSink.class);
 
   final public static String A_SERVERHOST = "serverHost";
   final public static String A_SERVERPORT = "serverPort";
@@ -93,13 +94,14 @@ public class ThriftEventSink extends EventSink.Base {
   public void open() throws IOException {
 
     try {
+      int timeout = FlumeConfiguration.get().getThriftSocketTimeoutMs();
       if (nonblocking) {
         // non blocking must use "Framed transport"
-        transport = new TSocket(host, port);
+        transport = new TSocket(host, port, timeout);
         stats = new TStatsTransport(transport);
         transport = new TFramedTransport(stats);
       } else {
-        transport = new TSocket(host, port);
+        transport = new TSocket(host, port, timeout);
         stats = new TStatsTransport(transport);
         transport = stats;
       }
@@ -150,7 +152,7 @@ public class ThriftEventSink extends EventSink.Base {
       public EventSink build(Context context, String... args) {
         if (args.length > 2) {
           throw new IllegalArgumentException(
-              "usage: thrift([hostname, [portno]]) ");
+              "usage: thriftSink([hostname, [portno]]) ");
         }
         String host = FlumeConfiguration.get().getCollectorHost();
         int port = FlumeConfiguration.get().getCollectorPort();
@@ -161,10 +163,8 @@ public class ThriftEventSink extends EventSink.Base {
         if (args.length >= 2) {
           port = Integer.parseInt(args[1]);
         }
-
         return new ThriftEventSink(host, port);
       }
     };
   }
-
 }
