@@ -1,3 +1,12 @@
+flume (0.9.2+1-0sg35) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Added JMX beans for all reportable objects.
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 29 Dec 2010 18:32:24 +0000
+
 flume (0.9.2+1-0sg34) UNRELEASED; urgency=low
 
   [ Ben Standefer ]
