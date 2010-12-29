@@ -36,6 +36,7 @@ function usage {
   echo "  master_nowatch  Start a Flume Master server (no watchdog)"
   echo "  class <class>   Run specified fully qualified class using Flume environment (no watchdog)"
   echo "                   ex: flume com.cloudera.flume.agent.FlumeNode "
+  echo "  status		  Show the status of the physical node for the localhost"
   echo "  classpath       Dump the classpath used by the java executables"
   echo "  shell           Start the flume shell"
   echo "  killmaster      Kill a running master"
@@ -290,6 +291,24 @@ elif [ "$CMD" = "killmaster" ] ; then
 elif [ "$CMD" = "class" ]; then
   # Just do a java class with the environment setup
   exec java $JOPTS $UOPTS "$@"
+elif [ "$CMD" = "status" ]; then
+  # Ugly, but it works!
+  JMX_JAR=`find /usr/lib/flume -name jmx*`
+  JMX_OUTPUT=`pwd`/flume_output
+  JMX_COMMAND=`pwd`/flume_commands
+
+  echo beans > $JMX_COMMAND
+  java -jar $JMX_JAR -l localhost:$JMX_PORT -i $JMX_COMMAND -o $JMX_OUTPUT
+  BEANS=`cat $JMX_OUTPUT | grep "type=pn-" | tr "\n" " "`
+  rm $JMX_COMMAND
+  for bean in $BEANS
+  do
+    echo bean $bean >> $JMX_COMMAND
+    echo "get *" >> $JMX_COMMAND
+  done
+  java -jar $JMX_JAR -l localhost:$JMX_PORT -i $JMX_COMMAND -o $JMX_OUTPUT
+  cat $JMX_OUTPUT
+  rm $JMX_OUTPUT $JMX_COMMAND
 elif [ "$CMD" = "classpath" ];  then
   echo $CLASSPATH
 else
