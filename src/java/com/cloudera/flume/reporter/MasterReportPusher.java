@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.management.JMException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +47,7 @@ public class MasterReportPusher {
   final FlumeConfiguration cfg;
   final ReportManager rptMan;
   final MasterRPC masterRPC;
+  final ReportMBeanManager mBeanManager;
   final PusherThread pusherThread = new PusherThread();
 
   volatile boolean shutdown = false;
@@ -56,9 +59,15 @@ public class MasterReportPusher {
    */
   public MasterReportPusher(FlumeConfiguration cfg, ReportManager rptMan,
       MasterRPC rpcMan) {
-    this.cfg = cfg;
-    this.rptMan = rptMan;
-    this.masterRPC = rpcMan;
+	  this(cfg, rptMan, rpcMan, ReportMBeanManager.get());
+  }
+
+  public MasterReportPusher(FlumeConfiguration cfg, ReportManager rptMan,
+	      MasterRPC rpcMan, ReportMBeanManager mBeanManager) {
+	    this.cfg = cfg;
+	    this.rptMan = rptMan;
+	    this.masterRPC = rpcMan;
+	    this.mBeanManager = mBeanManager;
   }
 
   /**
@@ -113,6 +122,12 @@ public class MasterReportPusher {
           querySrcSinkReports(reports);
 
           masterRPC.putReports(reports);
+          try {
+			mBeanManager.putReports(reports);
+          } catch (JMException e) {
+        	  e.printStackTrace();
+			LOG.error(e.toString());
+		  }
         }
       } catch (InterruptedException e) {
         LOG.warn("MasterReportPusher.PusherThread was interrupted", e);
