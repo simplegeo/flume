@@ -1,3 +1,14 @@
+flume (0.9.2+1-0sg37) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Specify a JMX port.
+  * Added a new command called "status" that will load up information
+    from all logical nodes on the current host using JMX.
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 29 Dec 2010 21:09:35 +0000
+
 flume (0.9.2+1-0sg35) UNRELEASED; urgency=low
 
   [ dsmith ]
