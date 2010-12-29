@@ -36,6 +36,7 @@ function usage {
   echo "  master_nowatch  Start a Flume Master server (no watchdog)"
   echo "  class <class>   Run specified fully qualified class using Flume environment (no watchdog)"
   echo "                   ex: flume com.cloudera.flume.agent.FlumeNode "
+  echo "  status		  Show the status of the physical node for the localhost"
   echo "  classpath       Dump the classpath used by the java executables"
   echo "  shell           Start the flume shell"
   echo "  killmaster      Kill a running master"
@@ -85,6 +86,9 @@ function append_jars_onto_classpath() {
 
 # name of script
 BINPATH=`dirname $0`
+
+JMX_PORT=8181
+JMX_OPTIONS="-Dcom.sun.management.jmxremote.port=${JMX_PORT} -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false"
 
 if [ -f "${BINPATH}/flume-env.sh" ]; then
     source "$BINPATH/flume-env.sh"
@@ -243,10 +247,10 @@ if [ "$CMD" = "-h" ] ; then
   usage
 elif [ "$CMD" = "node" ] ; then
   # there can be multiple nodes.
-  exec $NODE_WATCHDOG java $JOPTS $UOPTS com.cloudera.flume.agent.FlumeNode "$@"
+  exec $NODE_WATCHDOG java $JOPTS $UOPTS $JMX_OPTIONS com.cloudera.flume.agent.FlumeNode "$@"
 elif [ "$CMD" = "nodei" ] ; then
   # there can be multiple nodes.
-  exec $NODEI_WATCHDOG java $JOPTS $UOPTS com.cloudera.flume.agent.FlumeNode "$@"
+  exec $NODEI_WATCHDOG java $JOPTS $UOPTS $JMX_OPTIONS com.cloudera.flume.agent.FlumeNode "$@"
 elif [ "$CMD" = "master" ] ; then
   # only allow one master
   if [ -f $MASTERPID ] ; then
@@ -254,11 +258,11 @@ elif [ "$CMD" = "master" ] ; then
     echo "Master already running, pid=$PID"
     exit -1
   fi
-  exec $MASTER_WATCHDOG java $JOPTS $UOPTS com.cloudera.flume.master.FlumeMaster "$@"
+  exec $MASTER_WATCHDOG java $JOPTS $UOPTS $JMX_OPTIONS com.cloudera.flume.master.FlumeMaster "$@"
 elif [ "$CMD" = "node_nowatch" ] ; then
-  exec java $JOPTS $UOPTS com.cloudera.flume.agent.FlumeNode "$@"
+  exec java $JOPTS $UOPTS $JMX_OPTIONS com.cloudera.flume.agent.FlumeNode "$@"
 elif [ "$CMD" = "master_nowatch" ] ; then
-  exec java $JOPTS $UOPTS com.cloudera.flume.master.FlumeMaster "$@"
+  exec java $JOPTS $UOPTS $JMX_OPTIONS com.cloudera.flume.master.FlumeMaster "$@"
 elif [ "$CMD" = "watchdog" ] ; then
   exec java $UOPTS $WATCHDOG_CLASS "$@"
 elif [ "$CMD" = "version" ] ; then
@@ -269,7 +273,7 @@ elif [ "$CMD" = "unit4" ] ; then
   exec $FLUME org.junit.runner.JUnitCore "$@"
 elif [ "$CMD" = "dump" ] ; then
   # this has no error checking.  be careful!
-  exec java $JOPTS $UOPTS com.cloudera.flume.agent.FlumeNode \
+  exec java $JOPTS $UOPTS $JMX_OPTIONS com.cloudera.flume.agent.FlumeNode \
       -1 -s -r -n dump -c "dump: $1 | console; "
 elif [ "$CMD" = "shell" ] ; then
   exec java $JOPTS $UOPTS com.cloudera.flume.util.FlumeShell "$@"
@@ -287,6 +291,24 @@ elif [ "$CMD" = "killmaster" ] ; then
 elif [ "$CMD" = "class" ]; then
   # Just do a java class with the environment setup
   exec java $JOPTS $UOPTS "$@"
+elif [ "$CMD" = "status" ]; then
+  # Ugly, but it works!
+  JMX_JAR=`find /usr/lib/flume -name jmx*`
+  JMX_OUTPUT=`pwd`/flume_output
+  JMX_COMMAND=`pwd`/flume_commands
+
+  echo beans > $JMX_COMMAND
+  java -jar $JMX_JAR -l localhost:$JMX_PORT -i $JMX_COMMAND -o $JMX_OUTPUT
+  BEANS=`cat $JMX_OUTPUT | grep "type=pn-" | tr "\n" " "`
+  rm $JMX_COMMAND
+  for bean in $BEANS
+  do
+    echo bean $bean >> $JMX_COMMAND
+    echo "get *" >> $JMX_COMMAND
+  done
+  java -jar $JMX_JAR -l localhost:$JMX_PORT -i $JMX_COMMAND -o $JMX_OUTPUT
+  cat $JMX_OUTPUT
+  rm -f $JMX_OUTPUT $JMX_COMMAND
 elif [ "$CMD" = "classpath" ];  then
   echo $CLASSPATH
 else
