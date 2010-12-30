@@ -607,13 +607,9 @@ public class TestCollectorSink {
       Thread t = new Thread("roller") {
         @Override
         public void run() {
-          try {
-            for (int i = 0; i < ROLLS; i++) {
-              roll.rotate();
-            }
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-          }
+          for (int i = 0; i < ROLLS; i++) {
+		  roll.rotate();
+		}
         }
       };
       t.start();
