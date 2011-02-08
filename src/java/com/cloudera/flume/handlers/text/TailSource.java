@@ -132,6 +132,14 @@ public class TailSource extends EventSource.Base {
   public TailSource(long waitTime) {
     this.sleepTime = waitTime;
   }
+  
+  /** 
+   * This method allows subclasses to modify the event in a specific
+   * way before flushing it to disk.
+   */
+  protected static Event generateEvent(byte[] body) {
+	  return new EventImpl(body);
+  }
 
   /**
    * To support multiple tail readers, we have a Cursor for each file name
@@ -213,7 +221,7 @@ public class TailSource extends EventSource.Base {
         byte[] body = new byte[remaining];
         buf.get(body, 0, remaining); // read all data
 
-        Event e = new EventImpl(body);
+        Event e = generateEvent(body);
         e.set(A_TAILSRCFILE, file.getName().getBytes());
         try {
           sync.put(e);
@@ -320,7 +328,7 @@ public class TailSource extends EventSource.Base {
           lastChannelPos = in.position();
           lastFileMod = fmod;
 
-          Event e = new EventImpl(body);
+          Event e = generateEvent(body);
           e.set(A_TAILSRCFILE, file.getName().getBytes());
           sync.put(e);
           madeProgress = true;
