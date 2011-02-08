@@ -34,22 +34,61 @@ import com.google.common.base.Preconditions;
 
 public class JSONExtractor extends EventSinkDecorator<EventSink> {
   private static final Logger LOG = LoggerFactory.getLogger(JSONExtractor.class);
-  final String attr;
-  final String key;
+ 
+  final String[] jsonKeys;
 
-  public JSONExtractor(EventSink snk, String key, String attr) {
+  public JSONExtractor(EventSink snk, String[] jsonKeys) {
     super(snk);
-    this.attr = attr;
-    this.key = key;
+    this.jsonKeys = jsonKeys;
   }
 
   @Override
   public void append(Event event) throws IOException {
     String s = new String(event.getBody());
     try {
+    	
+    	// This block is truly a masterpiece!
 		JSONObject jsonObject = new JSONObject(s);
-		String val = jsonObject.getString(this.key);
-		Attributes.setString(event, attr, val);
+		for( String jsonKey : jsonKeys) {
+			try {
+				String val = jsonObject.getString(jsonKey);
+				Attributes.setString(event, jsonKey, val);
+				break;
+			} catch (JSONException e) {
+				;
+			}
+			
+			try {
+				long val = jsonObject.getLong(jsonKey);
+				Attributes.setLong(event, jsonKey, val);
+				break;
+			} catch (JSONException e) {
+				;
+			}
+
+			try {
+				boolean val = jsonObject.getBoolean(jsonKey);
+				Attributes.setInt(event, jsonKey, val ? 1 : 0);
+				break;
+			} catch (JSONException e) {
+				;
+			}
+
+			try {
+				int val = jsonObject.getInt(jsonKey);
+				Attributes.setInt(event, jsonKey, val);
+				break;
+			} catch (JSONException e) {
+				;
+			}
+
+			try {
+				double val = jsonObject.getDouble(jsonKey);
+				Attributes.setDouble(event, jsonKey, val);
+			} catch (JSONException e) {
+				;
+			}
+		}
 	} catch (JSONException e) {
 		LOG.error("unable to parse JSON from the event body", e);
 	}
@@ -62,13 +101,9 @@ public class JSONExtractor extends EventSinkDecorator<EventSink> {
       @Override
       public EventSinkDecorator<EventSink> build(Context context,
           String... argv) {
-        Preconditions.checkArgument(argv.length == 2,
-            "usage: json(jsonKey, dstAttr)");
+        Preconditions.checkArgument(argv.length >= 1, "usage: json(jsonKey [jsonKey1, jsonKey2, ...])");
 
-        String jsonKey = argv[0];
-        String attr = argv[1];
-
-        EventSinkDecorator<EventSink> snk = new JSONExtractor(null, jsonKey, attr);
+        EventSinkDecorator<EventSink> snk = new JSONExtractor(null, argv);
         return snk;
       }
     };

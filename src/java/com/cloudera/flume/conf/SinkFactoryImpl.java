@@ -37,6 +37,7 @@ import com.cloudera.flume.core.EventSinkDecorator;
 import com.cloudera.flume.core.FormatterDecorator;
 import com.cloudera.flume.core.MaskDecorator;
 import com.cloudera.flume.core.SelectDecorator;
+import com.cloudera.flume.core.TimestampDecorator;
 import com.cloudera.flume.core.extractors.DateExtractor;
 import com.cloudera.flume.core.extractors.JSONExtractor;
 import com.cloudera.flume.core.extractors.RegexExtractor;
@@ -177,6 +178,7 @@ public class SinkFactoryImpl extends SinkFactory {
 
       // format the output
       { "format", FormatterDecorator.builder() },
+      { "timestamp", TimestampDecorator.builder() },
 
       // extractors
       { "regex", RegexExtractor.builder() },
