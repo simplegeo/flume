@@ -82,4 +82,46 @@ public class TestExtractors {
     assertEquals("", Attributes.readString(e1, "outofrange"));
 
   }
+  
+  @Test
+  public void testDateExtractor() throws IOException, InterruptedException {
+	  MemorySinkSource mem = new MemorySinkSource();
+      EventImpl e = new EventImpl("Test Event 26/Jul/2010:11:48:05 -0600".getBytes());
+      Attributes.setString(e, "date", "26/Jul/2010:11:48:05 -0600");
+      
+      //Test Default flow
+      DateExtractor d = new DateExtractor(mem, "date", "dd/MMM/yyyy:HH:mm:ss Z");
+      //Test custom prefix
+      DateExtractor d1 = new DateExtractor(d, "date", "dd/MMM/yyyy:HH:mm:ss Z", "test_");
+      //Test custom prefix with no zero padding
+      DateExtractor d2 = new DateExtractor(d1, "date", "dd/MMM/yyyy:HH:mm:ss Z", "test2_", false);
+  
+      d2.open();
+      d2.append(e);
+      d2.close();
+      mem.close();
+      mem.open();
+      Event e1 = mem.next();
+      assertEquals("26", Attributes.readString(e1, "dateday"));
+      assertEquals("07", Attributes.readString(e1, "datemonth"));
+      assertEquals("2010", Attributes.readString(e1, "dateyear"));
+      assertEquals("11", Attributes.readString(e1, "datehr"));
+      assertEquals("48", Attributes.readString(e1, "datemin"));
+      assertEquals("05", Attributes.readString(e1, "datesec"));
+      
+      assertEquals("26", Attributes.readString(e1, "test_day"));
+      assertEquals("07", Attributes.readString(e1, "test_month"));
+      assertEquals("2010", Attributes.readString(e1, "test_year"));
+      assertEquals("11", Attributes.readString(e1, "test_hr"));
+      assertEquals("48", Attributes.readString(e1, "test_min"));
+      assertEquals("05", Attributes.readString(e1, "test_sec"));
+      
+      assertEquals("26", Attributes.readString(e1, "test2_day"));
+      assertEquals("7", Attributes.readString(e1, "test2_month"));
+      assertEquals("2010", Attributes.readString(e1, "test2_year"));
+      assertEquals("11", Attributes.readString(e1, "test2_hr"));
+      assertEquals("48", Attributes.readString(e1, "test2_min"));
+      assertEquals("5", Attributes.readString(e1, "test2_sec"));
+  
+    }
 }

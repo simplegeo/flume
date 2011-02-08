@@ -37,8 +37,10 @@ import com.cloudera.flume.core.EventSinkDecorator;
 import com.cloudera.flume.core.FormatterDecorator;
 import com.cloudera.flume.core.MaskDecorator;
 import com.cloudera.flume.core.SelectDecorator;
+import com.cloudera.flume.core.extractors.DateExtractor;
 import com.cloudera.flume.core.extractors.RegexExtractor;
 import com.cloudera.flume.core.extractors.SplitExtractor;
+import com.cloudera.flume.core.extractors.TimestampExtractor;
 import com.cloudera.flume.handlers.avro.AvroEventSink;
 import com.cloudera.flume.handlers.batch.BatchingDecorator;
 import com.cloudera.flume.handlers.batch.GunzipDecorator;
@@ -179,6 +181,7 @@ public class SinkFactoryImpl extends SinkFactory {
       // extractors
       { "regex", RegexExtractor.builder() },
       { "split", SplitExtractor.builder() },
+      { "exDate", DateExtractor.builder() },
 
       // cpu / network tradeoffs
       { "batch", BatchingDecorator.builder() },
