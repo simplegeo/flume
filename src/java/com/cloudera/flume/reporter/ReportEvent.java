@@ -109,7 +109,7 @@ public class ReportEvent extends EventImpl {
       LOG.debug("Ignoring null string metric " + name);
     }
   }
-
+  
   /**
    * Returns the value of a long-valued metric. NOT THREAD SAFE.
    * 
