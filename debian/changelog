@@ -1,3 +1,22 @@
+flume (0.9.3b-sg57) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Added JMX beans for all reportable objects. Conflicts:
+    src/java/com/cloudera/flume/reporter/MasterReportPusher.java
+  * Specify a JMX port. Conflicts:  bin/flume
+  * Added a new command called "status" that will load up information
+    from all logical nodes on the current host using JMX.
+  * Make sure to include the binary
+  * Pull out the JMX_OPTIONS into their own local variable so we don't
+    end up using them twice in a single command (e.g. watchdog and node)
+    Conflicts:  bin/flume
+  * Removed the try/catch statement
+  * Added a source file
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Mon, 14 Feb 2011 20:34:34 +0000
+
 flume (0.9.3b-sg1) cloudera; urgency=low
 
   Updated thing debian version number.
