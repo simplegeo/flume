@@ -1,3 +1,12 @@
+flume (0.9.3b-sg63) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Upgrade the hadoop jar.
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Tue, 15 Feb 2011 00:52:20 +0000
+
 flume (0.9.3b-sg60) UNRELEASED; urgency=low
 
   [ dsmith ]
