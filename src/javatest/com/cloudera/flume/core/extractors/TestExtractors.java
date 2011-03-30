@@ -18,8 +18,12 @@
 package com.cloudera.flume.core.extractors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.TimeZone;
 
 import org.junit.Test;
 
@@ -80,6 +84,88 @@ public class TestExtractors {
     assertEquals("4", Attributes.readString(e1, "disj"));
     assertEquals("", Attributes.readString(e1, "empty"));
     assertEquals("", Attributes.readString(e1, "outofrange"));
-
   }
+
+  @Test
+  public void testDateExtractor() throws IOException, InterruptedException {
+    // date gets when converted back assumes local time zone. This forces it to
+    // the time zone expected by this test.
+    TimeZone tz = TimeZone.getTimeZone("America/Denver");
+    TimeZone.setDefault(tz);
+
+    MemorySinkSource mem = new MemorySinkSource();
+    EventImpl e = new EventImpl("Test Event 26/Jul/2010:11:48:05 -0600".getBytes());
+    Attributes.setString(e, "date", "26/Jul/2010:11:48:05 -0600");
+    Attributes.setDouble(e, "created", 1300750243);
+
+    // Test Default flow
+    DateExtractor d = new DateExtractor(mem, "date", "dd/MMM/yyyy:HH:mm:ss Z");
+    // Test custom prefix
+    DateExtractor d1 = new DateExtractor(d, "date", "dd/MMM/yyyy:HH:mm:ss Z", "test_");
+    // Test custom prefix with no zero padding
+    DateExtractor d2 = new DateExtractor(d1, "date", "dd/MMM/yyyy:HH:mm:ss Z", "test2_", false);
+    // Test timestamp
+    DateExtractor d3 = new DateExtractor(d2, "created", "timestamp", "t_");
+
+    d3.open();
+    d3.append(e);
+    d3.close();
+
+    mem.close();
+    mem.open();
+    Event e1 = mem.next();
+    assertEquals("26", Attributes.readString(e1, "dateday"));
+    assertEquals("07", Attributes.readString(e1, "datemonth"));
+    assertEquals("2010", Attributes.readString(e1, "dateyear"));
+    assertEquals("11", Attributes.readString(e1, "datehr"));
+    assertEquals("48", Attributes.readString(e1, "datemin"));
+    assertEquals("05", Attributes.readString(e1, "datesec"));
+
+    assertEquals("26", Attributes.readString(e1, "test_day"));
+    assertEquals("07", Attributes.readString(e1, "test_month"));
+    assertEquals("2010", Attributes.readString(e1, "test_year"));
+    assertEquals("11", Attributes.readString(e1, "test_hr"));
+    assertEquals("48", Attributes.readString(e1, "test_min"));
+    assertEquals("05", Attributes.readString(e1, "test_sec"));
+
+    assertEquals("26", Attributes.readString(e1, "test2_day"));
+    assertEquals("7", Attributes.readString(e1, "test2_month"));
+    assertEquals("2010", Attributes.readString(e1, "test2_year"));
+    assertEquals("11", Attributes.readString(e1, "test2_hr"));
+    assertEquals("48", Attributes.readString(e1, "test2_min"));
+    assertEquals("5", Attributes.readString(e1, "test2_sec"));
+
+    assertEquals("21", Attributes.readString(e1, "t_day"));
+    assertEquals("03", Attributes.readString(e1, "t_month"));
+    assertEquals("2011", Attributes.readString(e1, "t_year"));
+    assertEquals("17", Attributes.readString(e1, "t_hr"));
+    assertEquals("30", Attributes.readString(e1, "t_min"));
+    assertEquals("43", Attributes.readString(e1, "t_sec"));
+  }
+
+  @Test
+  public void testJSONExtractor() throws IOException, InterruptedException {
+	  MemorySinkSource mem = new MemorySinkSource();
+	  EventImpl e = new EventImpl("{\"long\": 1306361584940, \"service\":\"money\", \"number\": 0, \"dontdoit\": \"okay\", \"dumb\": 10000, \"double\": 12.1112, \"boolean\": true}".getBytes());
+
+      //Test Default flow
+      JSONExtractor j1 = new JSONExtractor(mem, new String[]{"service"});
+      JSONExtractor j2 = new JSONExtractor(j1, new String[]{"number", "dumb"});
+      JSONExtractor j3 = new JSONExtractor(j2, new String[]{"double", "boolean"});
+
+      j3.open();
+      j3.append(e);
+      j3.close();
+
+      mem.close();
+      mem.open();
+
+      Event e1 = mem.next();
+      assertEquals("money", Attributes.readString(e1, "service"));
+      assertEquals(0, Attributes.readInt(e1, "number").intValue());
+      assertEquals(1, Attributes.readInt(e1, "boolean").intValue());
+      assertEquals(10000, Attributes.readDouble(e1, "dumb").intValue());
+      assertTrue(12.1112 == Attributes.readDouble(e1, "double").doubleValue());
+      assertNull(Attributes.readString(e1, "dontdoit"));
+    }
 }
