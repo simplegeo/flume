@@ -1,3 +1,17 @@
+flume (0.9.3b-sg66) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * New extractors
+  * Inform the compiler that we are able to throw exceptions
+  * Added the json jar
+  * Create the flume log directory
+  * Limit the heap space size
+  * Use doubles when extracting values from the event.
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Tue, 24 May 2011 22:16:52 +0000
+
 flume (0.9.3b-sg64) UNRELEASED; urgency=low
 
   [ dsmith ]
