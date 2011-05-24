@@ -78,13 +78,17 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
   }
 
   @Override
-  public void append(Event e) throws IOException {
+  public void append(Event e) throws IOException, InterruptedException {
 	Calendar tDate = Calendar.getInstance();
 	if(pat.equals("timestamp")) {
-
-		Date date = new Date((long)(Attributes.readLong(e, attr) * 1000));
-		tDate.setTime(date);
-
+		try {
+			Date date = new Date((long)(Attributes.readDouble(e, attr) * 1000));
+			tDate.setTime(date);
+		} catch (NullPointerException npe) {
+			super.append(e);
+			LOG.warn("attribute "+attr+" does not exist");
+			return;
+		}
 	} else {
 
 		SimpleDateFormat date = new SimpleDateFormat(pat);
@@ -126,7 +130,7 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
         smin = String.format("%02d", min);
         ssec = String.format("%02d", sec);
     }
-    
+
     Attributes.setString(e, pre+"day", sday);
     Attributes.setString(e, pre+"month", smonth);
     Attributes.setString(e, pre+"year", syear);
