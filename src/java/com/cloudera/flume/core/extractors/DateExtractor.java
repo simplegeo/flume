@@ -97,10 +97,15 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
 			return;
 		} catch (BufferUnderflowException bue) {
 			super.append(e);
-			LOG.warn("attribute "+attr+" was not of type double");
+			LOG.warn("attribute "+attr+" was not of type double or integer");
 			return;
 		}
 
+		if (timestamp == 0) {
+			super.append(e);
+			LOG.warn("timestamp could not be found");
+		}
+		
 		Date date = new Date(timestamp);
 		tDate.setTime(date);
 
