@@ -1,3 +1,12 @@
+flume (0.9.3b-sg77) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Assume that number values are always doubles
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 25 May 2011 22:44:24 +0000
+
 flume (0.9.3b-sg76) UNRELEASED; urgency=low
 
   [ dsmith ]
