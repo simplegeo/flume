@@ -83,9 +83,14 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
   public void append(Event e) throws IOException, InterruptedException {
 	Calendar tDate = Calendar.getInstance();
 	if(pat.equals("timestamp")) {
+		long timestamp = 0;
 		try {
-			Date date = new Date((long)(Attributes.readDouble(e, attr) * 1000));
-			tDate.setTime(date);
+			// Going to try both integers and doubles here
+			try {
+				timestamp = (long)(Attributes.readDouble(e, attr) * 1000);
+			} catch (BufferUnderflowException bue) {
+				timestamp = (long)(Attributes.readInt(e, attr) * 1000);
+			}
 		} catch (NullPointerException npe) {
 			super.append(e);
 			LOG.warn("attribute "+attr+" does not exist");
@@ -95,6 +100,10 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
 			LOG.warn("attribute "+attr+" was not of type double");
 			return;
 		}
+
+		Date date = new Date(timestamp);
+		tDate.setTime(date);
+
 	} else {
 
 		SimpleDateFormat date = new SimpleDateFormat(pat);
