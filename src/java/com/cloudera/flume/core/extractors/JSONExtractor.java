@@ -78,7 +78,7 @@ public class JSONExtractor extends EventSinkDecorator<EventSink> {
 		
 	} catch (JSONException e) {
 		LOG.error("unable to parse JSON from the event body", e);
-		LOG.error(s);
+		LOG.error("unparsable string: s);
 	}
     
     super.append(event);
