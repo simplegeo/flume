@@ -104,6 +104,7 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
 		if (timestamp == 0) {
 			super.append(e);
 			LOG.warn("timestamp could not be found");
+			return;
 		}
 		
 		Date date = new Date(timestamp);
