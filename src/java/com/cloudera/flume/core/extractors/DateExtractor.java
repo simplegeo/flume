@@ -18,11 +18,13 @@
 package com.cloudera.flume.core.extractors;
 
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +89,10 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
 		} catch (NullPointerException npe) {
 			super.append(e);
 			LOG.warn("attribute "+attr+" does not exist");
+			return;
+		} catch (BufferUnderflowException bue) {
+			super.append(e);
+			LOG.warn("attribute "+attr+" was not of type double");
 			return;
 		}
 	} else {
