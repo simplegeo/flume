@@ -52,7 +52,7 @@ public class JSONExtractor extends EventSinkDecorator<EventSink> {
   @Override
   public void append(Event event) throws IOException, InterruptedException {
     String s = new String(event.getBody());
-    if (s.length()) {
+    if (s.length() > 0) {
     	try {
     		JSONObject jsonObject = new JSONObject(s);
     		for(String jsonKey : jsonKeys) {
