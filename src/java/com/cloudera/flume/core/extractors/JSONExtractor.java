@@ -61,13 +61,11 @@ public class JSONExtractor extends EventSinkDecorator<EventSink> {
     				if(obj instanceof Double) {
     					Attributes.setDouble(event, jsonKey, ((Double)obj).doubleValue());
     				} else if(obj instanceof Integer) {
-    					Attributes.setInt(event, jsonKey, ((Integer)obj).intValue());
+    					Attributes.setDouble(event, jsonKey, Double.valueOf(obj.toString()).doubleValue());
     				} else if(obj instanceof String) {
     					Attributes.setString(event, jsonKey, (String)obj);
     				} else if(obj instanceof Boolean) {
     					Attributes.setInt(event, jsonKey, ((Boolean)obj).booleanValue() ? 1 : 0);
-    				} else if(obj instanceof Long) {
-    					Attributes.setLong(event, jsonKey, ((Long)obj));
     				} else {
     					LOG.warn("unknown type for "+obj);
     				}

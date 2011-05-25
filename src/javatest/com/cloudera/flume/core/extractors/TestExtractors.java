@@ -146,11 +146,11 @@ public class TestExtractors {
   @Test
   public void testJSONExtractor() throws IOException, InterruptedException {
 	  MemorySinkSource mem = new MemorySinkSource();
-	  EventImpl e = new EventImpl("{\"service\":\"money\", \"number\": 0, \"dontdoit\": \"okay\", \"long\": 10000, \"double\": 12.1112, \"boolean\": true}".getBytes());
+	  EventImpl e = new EventImpl("{\"long\": 1306361584940, \"service\":\"money\", \"number\": 0, \"dontdoit\": \"okay\", \"dumb\": 10000, \"double\": 12.1112, \"boolean\": true}".getBytes());
 
       //Test Default flow
       JSONExtractor j1 = new JSONExtractor(mem, new String[]{"service"});
-      JSONExtractor j2 = new JSONExtractor(j1, new String[]{"number"});
+      JSONExtractor j2 = new JSONExtractor(j1, new String[]{"number", "dumb"});
       JSONExtractor j3 = new JSONExtractor(j2, new String[]{"double", "boolean"});
 
       j3.open();
@@ -164,6 +164,7 @@ public class TestExtractors {
       assertEquals("money", Attributes.readString(e1, "service"));
       assertEquals(0, Attributes.readInt(e1, "number").intValue());
       assertEquals(1, Attributes.readInt(e1, "boolean").intValue());
+      assertEquals(10000, Attributes.readDouble(e1, "dumb").intValue());
       assertTrue(12.1112 == Attributes.readDouble(e1, "double").doubleValue());
       assertNull(Attributes.readString(e1, "dontdoit"));
     }

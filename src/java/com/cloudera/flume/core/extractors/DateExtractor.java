@@ -79,31 +79,59 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
     this(snk, attr, pattern, prefix, true);
   }
 
+  private long getDouble(Event e, String attr) {
+	  long timestamp = 0;
+	  try {
+		  timestamp = (long)(Attributes.readDouble(e, attr) * 1000);
+	  } catch (BufferUnderflowException bue) {
+		  //
+	  }
+
+	  return timestamp;
+  }
+
+  private long getLong(Event e, String attr) {
+	  long timestamp = 0;
+	  try {
+		  timestamp = Attributes.readLong(e, attr).longValue();
+	  } catch (BufferUnderflowException bue) {
+		  //
+	  }
+
+	  return timestamp;
+  }
+
+  private long getInt(Event e, String attr) {
+	  long timestamp = 0;
+	  try {
+		  timestamp = (long)(Attributes.readInt(e, attr) * 1000);
+	  } catch (BufferUnderflowException bue) {
+		  //
+	  }
+
+	  return timestamp;
+  }
+
+  
   @Override
   public void append(Event e) throws IOException, InterruptedException {
 	Calendar tDate = Calendar.getInstance();
 	if(pat.equals("timestamp")) {
 		long timestamp = 0;
 		try {
-			// Going to try both integers and doubles here
-			try {
-				timestamp = (long)(Attributes.readDouble(e, attr) * 1000);
-			} catch (BufferUnderflowException bue) {
-				timestamp = (long)(Attributes.readInt(e, attr) * 1000);
-			}
+			
+			// Always assume its going to be a double
+			timestamp = getDouble(e, attr);
+
 		} catch (NullPointerException npe) {
 			super.append(e);
 			LOG.warn("attribute "+attr+" does not exist");
 			return;
-		} catch (BufferUnderflowException bue) {
-			super.append(e);
-			LOG.warn("attribute "+attr+" was not of type double or integer");
-			return;
 		}
-
+		
 		if (timestamp == 0) {
 			super.append(e);
-			LOG.warn("timestamp could not be found");
+			LOG.warn("timestamp was not of type long/double/integer");
 			return;
 		}
 		
