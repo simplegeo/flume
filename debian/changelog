@@ -1,3 +1,12 @@
+flume (0.9.3b-sg71) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * update error message
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 25 May 2011 21:38:03 +0000
+
 flume (0.9.3b-sg70) UNRELEASED; urgency=low
 
   [ dsmith ]
