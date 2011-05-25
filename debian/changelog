@@ -1,3 +1,13 @@
+flume (0.9.3b-sg75) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * fix up error message
+  * Deal with the case when the timestamp variable does not change
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 25 May 2011 22:06:44 +0000
+
 flume (0.9.3b-sg74) UNRELEASED; urgency=low
 
   [ dsmith ]
