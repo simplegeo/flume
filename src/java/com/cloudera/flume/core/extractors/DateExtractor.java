@@ -97,7 +97,7 @@ public class DateExtractor extends EventSinkDecorator<EventSink> {
 			return;
 		} catch (BufferUnderflowException bue) {
 			super.append(e);
-			LOG.warn("attribute "+attr+" was not of type double");
+			LOG.warn("attribute "+attr+" was not of type double or integer");
 			return;
 		}
 
