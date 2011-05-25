@@ -1,3 +1,15 @@
+flume (0.9.3b-sg73) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * update error message
+  * make sure string has a length greater than 0
+  * Bad syntax error
+  * Spend too much time in C
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 25 May 2011 21:44:38 +0000
+
 flume (0.9.3b-sg70) UNRELEASED; urgency=low
 
   [ dsmith ]
