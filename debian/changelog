@@ -1,3 +1,12 @@
+flume (0.9.3b-sg76) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Need to return after we have appended
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 25 May 2011 22:09:24 +0000
+
 flume (0.9.3b-sg75) UNRELEASED; urgency=low
 
   [ dsmith ]
