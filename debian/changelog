@@ -1,3 +1,12 @@
+flume (0.9.3b-sg74) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * try to grab either integers and doubles from the byte buffer
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 25 May 2011 21:58:10 +0000
+
 flume (0.9.3b-sg73) UNRELEASED; urgency=low
 
   [ dsmith ]
