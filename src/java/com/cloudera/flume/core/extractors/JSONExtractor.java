@@ -65,6 +65,10 @@ public class JSONExtractor extends EventSinkDecorator<EventSink> {
 					Attributes.setString(event, jsonKey, (String)obj);
 				} else if(obj instanceof Boolean) {
 					Attributes.setInt(event, jsonKey, ((Boolean)obj).booleanValue() ? 1 : 0);
+				} else if(obj instanceof Long) {
+					Attributes.setLong(event, jsonKey, ((Long)obj));
+				} else {
+					LOG.warn("unknown type for "+obj);
 				}
 			} catch (JSONException e) {
 				// Ignore the JSON exception for now
@@ -74,6 +78,7 @@ public class JSONExtractor extends EventSinkDecorator<EventSink> {
 		
 	} catch (JSONException e) {
 		LOG.error("unable to parse JSON from the event body", e);
+		LOG.error(s);
 	}
     
     super.append(event);
