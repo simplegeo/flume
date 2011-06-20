@@ -104,7 +104,7 @@ JOPTS+="-Dflume.log.file=${FLUME_LOGFILE:-flume.log} "
 JOPTS+="-Dflume.root.logger=${FLUME_ROOT_LOGGER:-INFO,console} "
 JOPTS+="-Dzookeeper.root.logger=${ZOOKEEPER_ROOT_LOGGER:-ERROR,console} "
 JOPTS+="-Dwatchdog.root.logger=${WATCHDOG_ROOT_LOGGER:-INFO,console} "
-JOPTS+="-Xmx512m "
+JOPTS+="-Xmx512m -Xss512k "
 
 if [ "$cygwin" == false ] ; then
   # unix and "unix-like" setup
