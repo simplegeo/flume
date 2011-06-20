@@ -1,3 +1,13 @@
+flume (0.9.3b-sg80) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * New extractors
+  * Check for null before we attempt to call any methods on the watcher
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Mon, 20 Jun 2011 19:46:43 +0000
+
 flume (0.9.3b-sg79) UNRELEASED; urgency=low
 
   * UNRELEASED
