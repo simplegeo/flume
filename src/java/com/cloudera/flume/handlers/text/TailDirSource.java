@@ -200,10 +200,13 @@ public class TailDirSource extends EventSource.Base {
   @Override
   synchronized public void close() throws IOException {
     tail.close();
-    this.watcher.stop();
-    this.watcher = null;
-    for (DirWatcher watcher : subdirWatcherMap.values()) {
-      watcher.stop();
+
+    if(this.watcher != null) {
+      this.watcher.stop();
+      this.watcher = null;
+      for (DirWatcher watcher : subdirWatcherMap.values()) {
+        watcher.stop();
+      }
     }
     subdirWatcherMap = null;
   }
