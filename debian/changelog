@@ -1,3 +1,12 @@
+flume (0.9.3b-sg82) UNRELEASED; urgency=low
+
+  [ dsmith ]
+  * Added status command to the init scripts
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Fri, 26 Aug 2011 17:51:08 +0000
+
 flume (0.9.3b-sg81) UNRELEASED; urgency=low
 
   [ dsmith ]
