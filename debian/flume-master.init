@@ -48,6 +48,10 @@ stop() {
   echo
 }
 
+status() {
+  su -s /bin/sh  flume -c '${FLUME_HOME}/bin/flume-daemon.sh status master'
+}
+
 restart() {
   stop
   echo "Sleeping for ${DOTIME}"
@@ -64,6 +68,9 @@ case "$1" in
     ;;
   restart)
     restart
+    ;;
+  status)
+    status
     ;;
   *)
     echo $"Usage: $0 {start|stop|restart}"

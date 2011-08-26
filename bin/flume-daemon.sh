@@ -95,7 +95,7 @@ case $startStop in
     echo $! > $pid
     sleep 1; head "$log"
     ;;
-          
+
   (stop)
 
     if [ -f $pid ]; then
@@ -107,6 +107,17 @@ case $startStop in
       fi
     else
       echo no $command to stop
+    fi
+    ;;
+
+  (status)
+    mkdir -p "$FLUME_PID_DIR"
+    if [ -f $pid ]; then
+      echo $command running as process `cat $pid`
+      exit 0
+    else
+      echo $command is not running
+      exit 1
     fi
     ;;
 
